@@ -40,8 +40,7 @@ namespace HowToFishMon
 
         public static Vector3 PlayerForward(Player p) => Quaternion.Euler(0f, PlayerYaw(p), 0f) * Vector3.forward;
 
-        // commands
-        // a creature you told it to attack. Overrides automatic targeting.
+        // commands a creature you told it to attack. Overrides automatic targeting.
         public Creature OrderedTarget { get; private set; }
         // holding position: doesn't follow you or pick its own fights
         public bool Staying { get; private set; }
@@ -381,7 +380,8 @@ namespace HowToFishMon
             if (Staying) return null;
 
             var boss = BossManager.Boss;
-            if (boss && !boss.IsDead && !boss.IsDestroying &&
+            // skip the boss while it's immortal (piranha / pufferfish / whale phases) so it goes for the adds instead
+            if (boss && !boss.IsDead && !boss.IsDestroying && !BossManager.IsImmortal &&
                 Vector3.Distance(pp, boss.transform.position) <= Plugin.AggroRange.Value)
                 return boss;
 
@@ -619,7 +619,8 @@ namespace HowToFishMon
             Vector3 at = transform.position;
             Vector3 dir = (_p1 - _p0).normalized;
 
-            if (BossManager.IsImmortal) { FishMonController.AddFloat(at, "Immune!", Color.gray); return; }
+            // the game only makes actual bosses immortal (e.g. the piranha boss while its babies are out), not the babies
+            if (_boss.Creature.BossType != BossType.None && BossManager.IsImmortal) { FishMonController.AddFloat(at, "Immune!", Color.gray); return; }
             var h = Combat.FishHitsBoss(Mon, _boss, _pendingMove);
             if (h.Missed) { FishMonController.AddFloat(at, "Missed!", Color.gray); Net.SendAttack(2, _pendingMove, at, dir, 1f, false, _inWater); return; }
             if (h.Eff <= 0f) { FishMonController.AddFloat(at, "No effect...", Color.gray); Net.SendAttack(2, _pendingMove, at, dir, 0f, false, _inWater); return; }
