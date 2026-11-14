@@ -10,6 +10,17 @@ FishMon adds a Pokemon-like system to the game where you can catch fish, level t
 
 There are a LOT of features included, from catching and evolving fish to a full party system, different moves, stats, and even multiplayer support!
 
+## Installing
+
+**Easiest way:** get it from Thunderstore with a mod manager like r2modman. It installs BepInEx for you too.
+
+**Manual way:**
+1. Install [BepInEx 5](https://thunderstore.io/c/how-to-fish/p/BepInEx/BepInExPack/) if you don't have it (unzip it into your How to Fish folder and run the game once).
+2. Download `FishMon-x.x.x.zip` from the [Releases](https://github.com/BrendonKTech/HowToFishMon/releases) page.
+3. Unzip it into your How to Fish folder. You should end up with `BepInEx/plugins/HowToFishMon/HowToFishMon.dll`.
+
+In multiplayer, the host needs the mod for everyone to see each other's FishMon.
+
 ## How To Use FishMon
 
 | Feature | How it works |
@@ -199,6 +210,12 @@ Run the following command:
 
 ```bash
 dotnet build -c Release
+```
+
+To make the zips for a release (they go in `dist/`), run:
+
+```bash
+powershell -ExecutionPolicy Bypass -File package.ps1
 ```
 
 The build should automatically copy `HowToFishMon.dll` into:
