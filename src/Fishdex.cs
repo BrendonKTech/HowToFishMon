@@ -110,6 +110,12 @@ namespace HowToFishMon
             FishMonStorage.SaveSoon();
         }
 
+        // after switching saves: fill the new dex in too (only once the game's creature list exists)
+        public static void Refill()
+        {
+            if (_species != null && _species.Count > 0) Backfill();
+        }
+
         // fill the dex from FishMon you already own and creatures the game's journal says you've killed
         private static void Backfill()
         {

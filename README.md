@@ -187,6 +187,10 @@ Your FishMon data is saved separately here:
 
 `BepInEx/config/FishMon_save.json`
 
+By default your FishMon are shared between all your worlds. The first time you load a world you're hosting, you'll be asked if you want to **bring your FishMon** or **start fresh**. Starting fresh gives that world its own party, Box and Fishdex, saved in `BepInEx/config/FishMon_worlds/`. You only get asked once per world. If you want to be asked again, delete that world's line from `FishMon_worlds/choices.json`.
+
+When you join someone else's world, you always bring your shared FishMon.
+
 ## Building the Mod
 
 If you want to build the mod yourself, you'll need the .NET SDK (version 6 or higher).

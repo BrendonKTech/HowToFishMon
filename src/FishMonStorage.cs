@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 namespace HowToFishMon
 {
     // party + Box, saved to BepInEx/config/FishMon_save.json
+    // worlds that chose "start fresh" get their own file in BepInEx/config/FishMon_worlds/
     public static class FishMonStorage
     {
         private class SaveData
@@ -38,10 +39,69 @@ namespace HowToFishMon
             }
         }
 
-        private static string FilePath => Path.Combine(BepInEx.Paths.ConfigPath, "FishMon_save.json");
+        private static string WorldsDir => Path.Combine(BepInEx.Paths.ConfigPath, "FishMon_worlds");
+        private static string ChoicesPath => Path.Combine(WorldsDir, "choices.json");
+
+        // null = the shared save every world uses by default
+        public static string CurrentWorld { get; private set; }
+
+        private static string FilePath => CurrentWorld == null
+            ? Path.Combine(BepInEx.Paths.ConfigPath, "FishMon_save.json")
+            : Path.Combine(WorldsDir, SafeFileName(CurrentWorld) + ".json");
+
+        private static string SafeFileName(string name)
+        {
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            return name.Trim().Length == 0 ? "_unnamed" : name.Trim();
+        }
+
+        // world name -> true if it has its own FishMon, false if it uses the shared ones
+        private static Dictionary<string, bool> _choices;
+
+        private static Dictionary<string, bool> Choices
+        {
+            get
+            {
+                if (_choices != null) return _choices;
+                try
+                {
+                    if (File.Exists(ChoicesPath))
+                        _choices = JsonConvert.DeserializeObject<Dictionary<string, bool>>(File.ReadAllText(ChoicesPath));
+                }
+                catch (Exception e) { Plugin.Log.LogWarning("Couldn't read FishMon world choices: " + e.Message); }
+                return _choices ?? (_choices = new Dictionary<string, bool>());
+            }
+        }
+
+        // has this world been asked yet? ownSave = what they picked
+        public static bool HasChoice(string world, out bool ownSave) => Choices.TryGetValue(world, out ownSave);
+
+        public static void SetChoice(string world, bool ownSave)
+        {
+            Choices[world] = ownSave;
+            try
+            {
+                Directory.CreateDirectory(WorldsDir);
+                File.WriteAllText(ChoicesPath, JsonConvert.SerializeObject(Choices, Formatting.Indented));
+            }
+            catch (Exception e) { Plugin.Log.LogError("Couldn't save FishMon world choices: " + e.Message); }
+        }
+
+        // switch to a world's own save (or null for the shared one). saves the current one first
+        public static void UseSave(string world)
+        {
+            if (world == CurrentWorld) return;
+            Save();
+            CurrentWorld = world;
+            Load();
+            Fishdex.Refill();
+            Plugin.Log.LogInfo(world == null ? "Using the shared FishMon save" : $"Using this world's own FishMon save ({world})");
+        }
 
         public static void Load()
         {
+            Dirty = false;
+            _data = new SaveData();
             try
             {
                 if (File.Exists(FilePath))
@@ -79,6 +139,7 @@ namespace HowToFishMon
             {
                 _data.HpMult = Plugin.FishHpMultiplier.Value;
                 string tmp = FilePath + ".tmp";
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(_data, Formatting.Indented));
                 if (File.Exists(FilePath)) File.Delete(FilePath);
                 File.Move(tmp, FilePath);

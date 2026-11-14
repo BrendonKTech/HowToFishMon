@@ -73,6 +73,12 @@ namespace HowToFishMon
             }
         }
 
+        // true when this game is the host (also true in solo worlds)
+        public static bool IsHost
+        {
+            get { var nm = Manager; return nm && nm.ServerManager && nm.ServerManager.Started; }
+        }
+
         private static bool ClientOnline(NetworkManager nm) => nm && nm.ClientManager && nm.ClientManager.Started;
 
         // setup

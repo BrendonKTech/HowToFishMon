@@ -11,7 +11,10 @@ namespace HowToFishMon
         public static FishMonController Instance { get; private set; }
 
         public static bool PartyOpen { get; private set; }
-        public static bool UIOpen => PartyOpen || ModMenu.Open;
+        public static bool UIOpen => PartyOpen || ModMenu.Open || WorldPrompt != null;
+
+        // set while we're asking "bring your FishMon or start fresh?" for a world you host
+        public static string WorldPrompt { get; private set; }
         public static Companion Active { get; private set; }
 
         // FishMon that hit the current boss; they share the kill exp
@@ -332,7 +335,9 @@ namespace HowToFishMon
             var player = Player.LocalPlayer;
             bool inGame = player && !MainMenuManager.IsInMenu;
 
-            if (inGame && !PauseManager.IsPaused && !ChatManager.IsTyping)
+            UpdateWorldSave(inGame);
+
+            if (inGame && WorldPrompt == null && !PauseManager.IsPaused && !ChatManager.IsTyping)
             {
                 if (Input.GetKeyDown(Plugin.ModMenuKey.Value)) SetModMenu(!ModMenu.Open);
                 else if (Input.GetKeyDown(Plugin.PartyKey.Value)) { if (ModMenu.Open) SetModMenu(false); SetPartyOpen(!PartyOpen); }
@@ -378,6 +383,77 @@ namespace HowToFishMon
 
             Toasts.RemoveAll(t => t.Until < Time.unscaledTime);
             Floaters.RemoveAll(f => Time.time - f.Start > f.Dur);
+        }
+
+        // per-world saves. only the host's own worlds can have one, guests always bring their shared FishMon
+        private static string HostedWorld()
+        {
+            if (!Net.IsHost) return null;
+            try { return SaveManager.CurServerSave?.Name; } catch { return null; }
+        }
+
+        private void UpdateWorldSave(bool inGame)
+        {
+            string world = inGame ? HostedWorld() : null;
+            if (world == null)
+            {
+                if (WorldPrompt != null) SetWorldPrompt(null);
+                if (FishMonStorage.CurrentWorld != null) SwitchSave(null);
+                return;
+            }
+            if (FishMonStorage.HasChoice(world, out bool own))
+            {
+                string want = own ? world : null;
+                if (FishMonStorage.CurrentWorld != want) SwitchSave(want);
+                return;
+            }
+            // first time in this world: ask
+            if (WorldPrompt != world)
+            {
+                Recall(false);
+                SetWorldPrompt(world);
+            }
+        }
+
+        private void SetWorldPrompt(string world)
+        {
+            bool was = UIOpen;
+            WorldPrompt = world;
+            if (UIOpen != was) { try { PlayerCamera.ToggleMouse(UIOpen); } catch { } }
+        }
+
+        private void SwitchSave(string world)
+        {
+            Recall(false);
+            Participants.Clear();
+            _selected = null;
+            FishMonStorage.UseSave(world);
+        }
+
+        private void ChooseWorld(bool ownSave)
+        {
+            string world = WorldPrompt;
+            if (world == null) return;
+            FishMonStorage.SetChoice(world, ownSave);
+            SetWorldPrompt(null);
+            SwitchSave(ownSave ? world : null);
+            ShowToast(ownSave
+                ? $"\"{world}\" has its own FishMon now. Hook a fish and pick it up to catch your first one!"
+                : "Your FishMon came with you!", new Color(0.6f, 1f, 0.7f), 6f);
+        }
+
+        private void DrawWorldPrompt()
+        {
+            var r = new Rect(VW / 2f - 280f, VH / 2f - 130f, 560f, 260f);
+            Styles.Fill(r, Styles.Panel);
+            Styles.Border(r, Styles.Accent, 2f);
+            GUI.Label(new Rect(r.x + 24, r.y + 18, r.width - 48, 34), "New world!", Styles.Title);
+            GUI.Label(new Rect(r.x + 24, r.y + 60, r.width - 48, 100),
+                $"This is your first time in \"{WorldPrompt}\" with FishMon. Do you want to bring the FishMon you already have, " +
+                "or start fresh with an empty party, Box and Fishdex just for this world?\n\n<size=13>Only asked once per world.</size>",
+                Styles.BodyWrap);
+            if (GUI.Button(new Rect(r.x + 24, r.yMax - 70, 244, 46), "Bring my FishMon", Styles.Button)) ChooseWorld(false);
+            if (GUI.Button(new Rect(r.xMax - 268, r.yMax - 70, 244, 46), "Start fresh", Styles.Button)) ChooseWorld(true);
         }
 
         private void SetPartyOpen(bool open)
@@ -478,7 +554,8 @@ namespace HowToFishMon
             if (Player.LocalPlayer && !MainMenuManager.IsInMenu && !PauseManager.IsPaused)
             {
                 DrawWorldText();
-                if (ModMenu.Open) ModMenu.Draw(VW, VH, () => SetModMenu(false));
+                if (WorldPrompt != null) DrawWorldPrompt();
+                else if (ModMenu.Open) ModMenu.Draw(VW, VH, () => SetModMenu(false));
                 else if (PartyOpen) DrawParty();
                 else DrawHud();
             }
