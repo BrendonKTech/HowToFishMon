@@ -1,0 +1,78 @@
+using System.Collections.Generic;
+using HarmonyLib;
+
+namespace HowToFishMon
+{
+    // remember every creature that gets hooked on the LOCAL player's rod
+    [HarmonyPatch(typeof(Item), "InitializeBait")]
+    internal static class HookPatch
+    {
+        public static readonly HashSet<Creature> HookedByMe = new HashSet<Creature>();
+
+        private static void Postfix(Item __instance, FishingRod rod)
+        {
+            try
+            {
+                if (!rod || !rod.Holder || rod.Holder != Player.LocalPlayer) return;
+                var c = __instance ? __instance.Creature : null;
+                if (c) Fishdex.MarkSeen(c);
+                if (c && HookedByMe.Add(c))
+                    FishMonController.ShowToast($"{Species.SafeName(c)} is hooked! Land it and pick it up (E) to catch it.", new UnityEngine.Color(0.7f, 0.9f, 1f), 3f);
+            }
+            catch (System.Exception e)
+            {
+                Plugin.Log.LogError("FishMon hook tracking failed: " + e);
+            }
+        }
+    }
+
+    // picking up a fish you hooked yourself = catching it. (The game only lets you pick up creatures once
+    // they're dead, so we don't require it alive.)
+    [HarmonyPatch(typeof(Item), nameof(Item.PickUp))]
+    internal static class CatchPatch
+    {
+        // creatures already caught this session, so re-grabbing a fish doesn't duplicate it
+        private static readonly HashSet<Creature> Caught = new HashSet<Creature>();
+
+        private static void Postfix(Item __instance, Player player)
+        {
+            try
+            {
+                if (!player || player != Player.LocalPlayer) return;
+                var c = __instance ? __instance.Creature : null;
+                if (!c || c.Bird || c.BossType != BossType.None || c.ExcludeFromJournal) return;
+                if (Plugin.OnlyCatchHooked.Value && !HookPatch.HookedByMe.Contains(c)) return;
+                if (!Caught.Add(c)) return;
+                HookPatch.HookedByMe.Remove(c);
+
+                var mon = Species.CreateFromCreature(c);
+                bool party = FishMonStorage.Add(mon);
+                FishMonController.OnCaught(mon, party);
+            }
+            catch (System.Exception e)
+            {
+                Plugin.Log.LogError("FishMon catch failed: " + e);
+            }
+        }
+    }
+
+    // freeze the player's movement/look/attacks while a FishMon menu is open
+    [HarmonyPatch(typeof(Player), nameof(Player.BlockInputs), MethodType.Getter)]
+    internal static class BlockInputsPatch
+    {
+        private static void Postfix(Player __instance, ref bool __result)
+        {
+            if (FishMonController.UIOpen && __instance == Player.LocalPlayer) __result = true;
+        }
+    }
+
+    // keep the mouse cursor free while a FishMon menu is open
+    [HarmonyPatch(typeof(PlayerCamera), nameof(PlayerCamera.ToggleMouse))]
+    internal static class ToggleMousePatch
+    {
+        private static void Prefix(ref bool unlock)
+        {
+            if (FishMonController.UIOpen) unlock = true;
+        }
+    }
+}
