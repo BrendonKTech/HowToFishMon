@@ -542,7 +542,7 @@ namespace HowToFishMon
 
         private void StartLunge()
         {
-            _pendingMove = Combat.PickMove(_moves, Mon.Type1, Mon.Type2, _boss.Type1, _boss.Type2);
+            _pendingMove = Combat.PickMove(_moves, Mon.Type1, Mon.Type2, _boss.Type1, _boss.Type2, SpreadTargets(_boss.Center).Count);
             Vector3 center = _boss.Center;
             Vector3 fromBoss = transform.position - center;
             // aim at the near side of the boss, a bit inside its body
@@ -619,9 +619,13 @@ namespace HowToFishMon
             Vector3 at = transform.position;
             Vector3 dir = (_p1 - _p0).normalized;
 
+            var others = _pendingMove.Spread ? SpreadTargets(_boss.Center) : new List<Creature>();
+            float spreadMult = others.Count > 0 ? 0.75f : 1f;
+            if (others.Count > 0) HitSpread(others, spreadMult, dir);
+
             // the game only makes actual bosses immortal (e.g. the piranha boss while its babies are out), not the babies
             if (_boss.Creature.BossType != BossType.None && BossManager.IsImmortal) { FishMonController.AddFloat(at, "Immune!", Color.gray); return; }
-            var h = Combat.FishHitsBoss(Mon, _boss, _pendingMove);
+            var h = Combat.FishHitsBoss(Mon, _boss, _pendingMove, spreadMult);
             if (h.Missed) { FishMonController.AddFloat(at, "Missed!", Color.gray); Net.SendAttack(2, _pendingMove, at, dir, 1f, false, _inWater); return; }
             if (h.Eff <= 0f) { FishMonController.AddFloat(at, "No effect...", Color.gray); Net.SendAttack(2, _pendingMove, at, dir, 0f, false, _inWater); return; }
 
@@ -650,6 +654,59 @@ namespace HowToFishMon
             {
                 _expCarry -= exp;
                 FishMonController.GiveExp(Mon, exp, null);
+            }
+        }
+
+        private const float SpreadRadius = 5f;
+        private const int MaxSpreadTargets = 8;
+
+        // other hostile creatures close to the target (not the target itself, not bosses)
+        private List<Creature> SpreadTargets(Vector3 center)
+        {
+            var list = new List<Creature>();
+            var main = _boss != null ? _boss.Creature : null;
+            foreach (var item in ItemManager.Items.Values)
+            {
+                var c = item ? item.Creature : null;
+                if (c == main || !IsHostile(c) || c.AttachedRod || c.Holder) continue;
+                if (Vector3.Distance(center, c.transform.position) <= SpreadRadius) list.Add(c);
+                if (list.Count >= MaxSpreadTargets) break;
+            }
+            return list;
+        }
+
+        private void HitSpread(List<Creature> targets, float mult, Vector3 dir)
+        {
+            var move = _pendingMove;
+            int hits = 0;
+            foreach (var c in targets)
+            {
+                if (!c || c.IsDead) continue;
+                var foe = BossMon.From(c);
+                var h = Combat.FishHitsBoss(Mon, foe, move, mult);
+                if (h.Missed || h.Eff <= 0f) continue;
+
+                Vector3 pos = foe.Center;
+                int real = Mathf.Min(Combat.ToRealDamage(h.Damage, foe), Mathf.Max(1, foe.RealHp));
+                bool kills = foe.RealHp - real <= 0;
+                Combat.DealRealDamage(foe, real, pos, dir);
+                if (Plugin.AttackEffects.Value) Fx.Burst(pos, TypeChart.ColorOf(move.Type), 6, 0.8f);
+                Net.SendAttack(3, move, pos, dir, h.Eff, h.Crit, false);
+                Fishdex.MarkSeen(c);
+                hits++;
+
+                _expCarry += foe.FullExp * 0.5f * real / (float)foe.RealMaxHp;
+                if (kills)
+                {
+                    int killExp = Mathf.Max(1, Mathf.RoundToInt(foe.FullExp * 0.5f));
+                    FishMonController.AddFloat(pos + Vector3.up, $"{foe.Name} defeated! +{killExp} exp", new Color(1f, 0.85f, 0.4f));
+                    FishMonController.GiveExp(Mon, killExp, new[] { 0, 1, 0, 0, 0, 0 });
+                }
+            }
+            if (hits > 0)
+            {
+                FishMonController.AddFloat(transform.position + Vector3.up * (HalfHeight + 1f), $"Hit {hits + 1} foes!", TypeChart.ColorOf(move.Type));
+                Plugin.Log.LogInfo($"{Mon.DisplayName}'s {move.Name} also hit {hits} other foe(s)");
             }
         }
 

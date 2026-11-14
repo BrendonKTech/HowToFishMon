@@ -41,7 +41,7 @@ namespace HowToFishMon
     public struct MonAttackMsg : IBroadcast
     {
         public int Owner;
-        public byte Kind;    // 0 = launch, 1 = hit, 2 = missed / no effect
+        public byte Kind;    // 0 = launch, 1 = hit, 2 = missed / no effect, 3 = spread move hitting an extra foe
         public string Move;
         public Vector3 Pos, Dir;
         public float Eff;

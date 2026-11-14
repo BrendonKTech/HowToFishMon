@@ -133,6 +133,9 @@ namespace HowToFishMon
                     if (m.Crit) extra = "Critical hit! " + extra;
                     if (extra.Length > 0) FishMonController.AddFloat(m.Pos + Vector3.up * 0.5f, extra, m.Eff >= 2f ? new Color(0.7f, 1f, 0.5f) : new Color(1f, 0.85f, 0.5f));
                     break;
+                case 3: // a spread move hitting one of the extra foes
+                    if (Plugin.AttackEffects.Value) Fx.Burst(m.Pos, TypeChart.ColorOf(move.Type), 6, 0.8f);
+                    break;
                 default: // missed / no effect
                     if (_trail) _trail.emitting = false;
                     FishMonController.AddFloat(m.Pos, m.Eff <= 0f ? "No effect..." : "Missed!", Color.gray);

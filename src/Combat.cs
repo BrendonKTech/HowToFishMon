@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace HowToFishMon
 {
-    // the boss as a FishMon-style opponent. Its HP is the REAL boss HP in the game world.
+    // the boss as a FishMon-style opponent, HP is the REAL boss HP in the game world.
     public class BossMon
     {
         public Creature Creature;
@@ -96,11 +96,11 @@ namespace HowToFishMon
         }
 
         // fish attacks boss. Returns the hit (Damage = battle damage).
-        public static HitResult FishHitsBoss(FishMon f, BossMon b, Move m)
+        public static HitResult FishHitsBoss(FishMon f, BossMon b, Move m, float mult = 1f)
         {
             bool phys = m.Category == MoveCategory.Physical;
             return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
-                m, f.Type1, f.Type2, b.Type1, b.Type2, 1f);
+                m, f.Type1, f.Type2, b.Type1, b.Type2, mult);
         }
 
         public static HitResult BossHitsFish(BossMon b, FishMon f, Move m)
@@ -157,13 +157,14 @@ namespace HowToFishMon
         }
 
         // the fish's smartest move against this boss, with a bit of randomness
-        public static Move PickMove(List<Move> moves, MonType self1, MonType self2, MonType tgt1, MonType tgt2)
+        public static Move PickMove(List<Move> moves, MonType self1, MonType self2, MonType tgt1, MonType tgt2, int extraFoes = 0)
         {
             if (moves.Count == 0) return HowToFishMon.Moves.All[0];
             if (Rng.NextDouble() < 0.25) return moves[Rng.Next(moves.Count)];
             return moves.OrderByDescending(m =>
                 m.Power * (m.Accuracy / 100f) * TypeChart.Effectiveness(m.Type, tgt1, tgt2) *
-                ((m.Type == self1 || m.Type == self2) ? 1.5f : 1f)).First();
+                ((m.Type == self1 || m.Type == self2) ? 1.5f : 1f) *
+                (m.Spread && extraFoes > 0 ? 0.75f * (1 + extraFoes) : 1f)).First();
         }
 
         public static float Random01() => (float)Rng.NextDouble();
