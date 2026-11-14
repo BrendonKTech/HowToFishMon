@@ -123,8 +123,37 @@ namespace HowToFishMon
             var player = Player.LocalPlayer;
             if (!boss || boss.IsDead || !player) return;
             // knock wild creatures around a bit; bosses ignore force anyway
-            boss.LocalHit(boss.transform, point, dir, player, amount, false, b.IsBoss ? Vector3.zero : dir * 4f);
+            CallLocalHit(boss, point, dir, player, amount, b.IsBoss ? Vector3.zero : dir * 4f);
             try { PlayerUI.AddDamageNumber(point, amount, boss.Hp - amount <= 0); } catch { }
+        }
+
+        // the game keeps adding params to LocalHit (an update added withArrow + whileInspecting and broke
+        // every attack), so find it by name and fill in whatever extra params it has with their defaults
+        private static System.Reflection.MethodInfo _localHit;
+
+        private static void CallLocalHit(Creature boss, Vector3 point, Vector3 dir, Player player, int damage, Vector3 force)
+        {
+            if (_localHit == null)
+            {
+                _localHit = typeof(Creature).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                    .Where(m => m.Name == "LocalHit")
+                    .OrderByDescending(m => m.GetParameters().Length)
+                    .FirstOrDefault();
+                if (_localHit == null) throw new MissingMethodException("Creature", "LocalHit");
+                Plugin.Log.LogInfo($"Using Creature.LocalHit with {_localHit.GetParameters().Length} params");
+            }
+
+            var ps = _localHit.GetParameters();
+            var args = new object[ps.Length];
+            // the ones we care about, in the order they've always been in
+            object[] known = { boss.transform, point, dir, player, damage, false, force };
+            for (int i = 0; i < ps.Length; i++)
+            {
+                if (i < known.Length && ps[i].ParameterType.IsInstanceOfType(known[i])) args[i] = known[i];
+                else if (ps[i].HasDefaultValue) args[i] = ps[i].DefaultValue;
+                else args[i] = ps[i].ParameterType.IsValueType ? Activator.CreateInstance(ps[i].ParameterType) : null;
+            }
+            _localHit.Invoke(boss, args);
         }
 
         // the fish's smartest move against this boss, with a bit of randomness

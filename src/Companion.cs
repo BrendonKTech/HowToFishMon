@@ -568,6 +568,8 @@ namespace HowToFishMon
             }
         }
 
+        private static bool _impactErrorLogged;
+
         private void DoArc(float dt, bool lunge)
         {
             _arcT += dt / _arcDur;
@@ -581,7 +583,14 @@ namespace HowToFishMon
 
             if (lunge)
             {
-                Impact();
+                // if the hit blows up (game update changed something) still finish the leap,
+                // otherwise the fish gets stuck here forever
+                try { Impact(); }
+                catch (System.Exception e)
+                {
+                    if (!_impactErrorLogged) Plugin.Log.LogError("FishMon attack failed, the game probably updated: " + e.GetBaseException());
+                    _impactErrorLogged = true;
+                }
                 if (_trail) _trail.emitting = false;
                 Vector3 back = _p0 - _p1; back.y = 0f;
                 if (back.sqrMagnitude < 0.01f) back = -transform.forward;
