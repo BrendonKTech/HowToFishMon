@@ -851,6 +851,23 @@ namespace HowToFishMon
             GUI.Label(new Rect(x, y + 2, w, 22), $"IV total {m.IVTotal}/186 — {m.IVJudge()}   ·   Bosses defeated: {m.BossesDefeated}   ·   {evoText}", Styles.Dim);
             y += 32;
 
+            var ab = m.AbilityInfo;
+            if (ab != null)
+            {
+                string col = Abilities.RarityColor(ab.Rarity);
+                string soon = ab.Implemented ? "" : "  <color=#9aa6bd>(coming soon)</color>";
+                GUI.Label(new Rect(x, y, w - 330, 24), $"Ability: <b><color={col}>{ab.Name}</color></b>  <color={col}><size=13>{ab.Rarity}</size></color>{soon}", Styles.Small);
+                GUI.Label(new Rect(x, y + 22, w - 330, 22), m.AbilityOn ? ab.Desc : "<color=#ff9a9a>Switched off.</color> " + ab.Desc, Styles.Dim);
+                if (GUI.Button(new Rect(x + w - 320, y + 4, 100, 30), m.AbilityOn ? "<color=#9fffb0>ON</color>" : "<color=#ff9a9a>OFF</color>", Styles.Button))
+                {
+                    m.AbilityOn = !m.AbilityOn;
+                    FishMonStorage.SaveSoon();
+                }
+                if (GUI.Button(new Rect(x + w - 210, y + 4, 210, 30), CostLabel("Reroll ability", Plugin.AbilityRerollCost.Value), Styles.Button))
+                    RerollAbility(m);
+                y += 50;
+            }
+
             GUI.Label(new Rect(x, y, w, 22), m.CustomMoves ? "Moves <color=#9aa6bd>(picked by you, change them in the Moves tab)</color>"
                                                            : "Moves <color=#9aa6bd>(auto, pick your own in the Moves tab)</color>", Styles.SmallBold);
             y += 24;
@@ -1237,6 +1254,17 @@ namespace HowToFishMon
             FishMonStorage.Save();
             ShowToast($"{m.DisplayName} was revived! ({m.CurrentHp}/{m.MaxHp} HP)", new Color(0.6f, 1f, 0.7f));
             try { AudioManager.PlayGlobalClip("Confetti"); } catch { }
+        }
+
+        private void RerollAbility(FishMon m)
+        {
+            if (!TryPay(Plugin.AbilityRerollCost.Value, $"reroll {m.DisplayName}'s ability")) return;
+            var old = m.AbilityInfo;
+            m.Ability = Abilities.Roll(new System.Random(), m.Shiny, m.Ability);
+            m.AbilityOn = true;
+            FishMonStorage.Save();
+            var ab = m.AbilityInfo;
+            ShowToast($"{m.DisplayName}'s ability changed from {old?.Name ?? "nothing"} to <color={Abilities.RarityColor(ab.Rarity)}>{ab.Name} ({ab.Rarity})</color>!", new Color(0.8f, 0.9f, 1f), 5f);
         }
 
         private static string CostLabel(string label, int cost) => cost > 0 ? $"{label} (${cost})" : label;

@@ -29,6 +29,17 @@ namespace HowToFishMon
         public int BossesDefeated;
         public int Stage;              // 0 = base form, 1 = first evolution, 2 = final
         public string BaseSpecies;     // the species it was caught as (evolution chains are keyed on this)
+        // rolled on catch (older saves get one on load). Saved as text so a renamed/removed ability can't break the save.
+        [JsonProperty("Ability")] public string AbilityName = "";
+        [JsonIgnore] public Ability Ability
+        {
+            get => Enum.TryParse(AbilityName, out Ability a) ? a : Ability.None;
+            set => AbilityName = value.ToString();
+        }
+        public bool AbilityOn = true;            // the player can switch it off in the party menu
+
+        [JsonIgnore] public AbilityInfo AbilityInfo => Abilities.Get(Ability);
+        public bool Has(Ability a) => Ability == a && AbilityOn;
 
         [JsonIgnore] public float RegenCarry;
         // set when it evolved; the controller swaps the model and clears it
@@ -315,6 +326,7 @@ namespace HowToFishMon
                 Type1 = info.Type1,
                 Type2 = info.Type2,
             };
+            mon.Ability = Abilities.Roll(rng, mon.Shiny);
             for (int i = 0; i < 6; i++) mon.IVs[i] = rng.Next(32);
             if (mon.Shiny)
             {

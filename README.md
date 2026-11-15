@@ -49,6 +49,30 @@ Each FishMon has:
 - **Types:** Every FishMon gets a type based on its species. For example, Eels are Electric, Sharks are Dark, Pufferfish are Poison, and Seahorses are Dragon. There's also a full type effectiveness system with all 18 types!
 - **Moves:** Your FishMon learns new moves as it levels up. By default, it'll automatically keep its 4 strongest moves.
 
+## Abilities
+
+Every FishMon rolls one ability when you catch it. Most are Common, some are Uncommon or Rare, and a few are Legendary. Drip fish are more likely to get a rarer one. You can see a FishMon's ability in the F6 menu, switch it off, or pay to reroll it.
+
+| Ability | Rarity | What it does |
+|---|---|---|
+| **Merchant** | Common | Picks up fish you drop near it and sells them for you. |
+| Scholar | Common | Gains 25% more EXP. *(coming soon)* |
+| Thick Scales | Common | Takes 20% less damage. *(coming soon)* |
+| Speedster | Common | Moves and attacks 25% faster. *(coming soon)* |
+| Guard | Uncommon | Stays close and goes after anything that hurts you. *(coming soon)* |
+| Angler | Uncommon | Helps you fish: bites come faster. *(coming soon)* |
+| Berserker | Uncommon | Hits harder the lower its HP is. *(coming soon)* |
+| Mentor | Uncommon | Benched party members get a share of its EXP. *(coming soon)* |
+| Medic | Rare | Slowly heals you while it's out. *(coming soon)* |
+| Treasure Hunter | Rare | Now and then digs up random loot. *(coming soon)* |
+| Leech | Rare | Heals itself for part of the damage it deals. *(coming soon)* |
+| Haggler | Rare | Fish you sell while it's out are worth 25% more. *(coming soon)* |
+| Lucky Charm | Legendary | Fish you catch while it's out get better IVs and levels. *(coming soon)* |
+
+**Merchant:** drop a dead fish within about 14 m of you and leave it for a couple of seconds. Your Merchant runs over and sells it, the same as the sell box. It won't take fish off a grill, fish other players dropped, or fish you're holding. In someone else's world, the host needs the mod for selling to work.
+
+FishMon caught before abilities were added get a random one the first time you load the new version.
+
 ## Evolution
 
 Every FishMon can evolve twice, meaning you'll eventually have some pretty crazy-looking fish following you around.

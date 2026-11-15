@@ -130,6 +130,11 @@ namespace HowToFishMon
             if (m.IVs == null || m.IVs.Length != 6) m.IVs = new int[6];
             if (m.EVs == null || m.EVs.Length != 6) m.EVs = new int[6];
             if (m.CurrentHp < 0 || m.CurrentHp > m.MaxHp) m.CurrentHp = m.MaxHp;
+            if (m.Ability == Ability.None || Abilities.Get(m.Ability) == null)
+            {
+                m.Ability = Abilities.Roll(new System.Random(), m.Shiny); // FishMon caught before abilities existed
+                Dirty = true;
+            }
         }
 
         public static void Save()

@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Abilities: every FishMon rolls an ability (Common to Legendary). Switch it off or reroll it in the party menu
+- First ability: **Merchant** picks up fish you drop and sells them for you
 - FishMon now roam around you, mostly in front of your camera, instead of trailing behind you. Toggle it and set the distance in the Mod Menu (on by default, 7 m)
 - Rebind every FishMon key from the Mod Menu (new **Controls** section), with swapping and a warning when a key is also one of the game's keys
 - Key names in messages are easier to read (e.g. "1" instead of "Alpha1")

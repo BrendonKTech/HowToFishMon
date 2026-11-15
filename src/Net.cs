@@ -49,6 +49,12 @@ namespace HowToFishMon
         public bool InWater;
     }
 
+    // guest -> host only: "my Merchant wants to sell this item" (the host checks it's really theirs)
+    public struct MonSellMsg : IBroadcast
+    {
+        public int ObjectId;
+    }
+
     // sends your FishMon to other players and shows theirs
     public static class Net
     {
@@ -87,6 +93,7 @@ namespace HowToFishMon
         {
             if (_serializersSet) return;
             _serializersSet = true;
+            SetSellSerializer();
 
             GenericWriter<MonInfoMsg>.SetWrite((w, m) =>
             {
@@ -124,6 +131,20 @@ namespace HowToFishMon
             });
         }
 
+        private static void SetSellSerializer()
+        {
+            GenericWriter<MonSellMsg>.SetWrite((w, m) => w.WriteInt32(m.ObjectId));
+            GenericReader<MonSellMsg>.SetRead(r => new MonSellMsg { ObjectId = r.ReadInt32() });
+        }
+
+        // guest: ask the host to sell an item for our Merchant
+        public static bool SendSell(Item it)
+        {
+            if (!it || !it.NetworkObject || !ClientOnline(_registeredOn)) return false;
+            Send(new MonSellMsg { ObjectId = it.NetworkObject.ObjectId });
+            return true;
+        }
+
         private static void EnsureRegistered(NetworkManager nm)
         {
             if (!nm || nm == _registeredOn) return;
@@ -134,6 +155,7 @@ namespace HowToFishMon
             nm.ServerManager.RegisterBroadcast<MonInfoMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonPosMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonAttackMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
+            nm.ServerManager.RegisterBroadcast<MonSellMsg>((conn, m, ch) => Safe(() => Merchant.OnSellRequest(conn, m.ObjectId)));
 
             // every client: show other players' FishMon
             nm.ClientManager.RegisterBroadcast<MonInfoMsg>((m, ch) => Safe(() => OnInfo(m)));

@@ -8,7 +8,7 @@ namespace HowToFishMon
     // a FishMon out in the world. It runs on your machine only (no physics); other players with the mod see a
     // copy of it through Net. Its hits deal real damage to the boss through the game's normal hit
     // path. Follows you around (flops on land, swims on water) and leaps at bosses on its own
-    public class Companion : MonoBehaviour
+    public partial class Companion : MonoBehaviour
     {
         private enum State { Follow, Engage, Lunge, Recover }
 
@@ -457,6 +457,7 @@ namespace HowToFishMon
             if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
             fwd.Normalize();
             Vector3 right = Vector3.Cross(Vector3.up, fwd);
+            if (!Staying && TickMerchant(player, dt)) return;
             if (!Staying && Plugin.RoamAroundYou.Value) { DoRoam(player, fwd, dt); return; }
             Vector3 goal = Staying ? _stayPos : PlayerPos(player) - fwd * 2.2f + right * 1.5f;
 

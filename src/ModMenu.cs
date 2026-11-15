@@ -72,6 +72,9 @@ namespace HowToFishMon
             I(Plugin.ReviveCost, "Revive cost", "Price of reviving one fainted FishMon.", 0, 2000, "$");
             F(Plugin.ReviveHpPercent, "Revive HP", "How much HP a revived FishMon comes back with.", 1f, 100f, "%");
 
+            Section("Abilities");
+            I(Plugin.AbilityRerollCost, "Reroll cost", "Price of rerolling a FishMon's ability in the party menu.", 0, 2000, "$");
+
             Section("Catching");
             B(Plugin.OnlyCatchHooked, "Only hooked fish", "Only fish you hooked with your own rod count as a catch.");
             I(Plugin.MinCatchLevel, "Lowest catch level", "Lowest level a new catch can be.", 1, 100, "");
