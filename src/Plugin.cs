@@ -72,6 +72,8 @@ namespace HowToFishMon
         public static ConfigEntry<int> WildFoeLevel;
         public static ConfigEntry<bool> AutoSendNext;
         public static ConfigEntry<float> CompanionScale;
+        public static ConfigEntry<bool> RoamAroundYou;
+        public static ConfigEntry<float> RoamRadius;
 
         // healing
         public static ConfigEntry<float> RegenPercentPerMinute;
@@ -150,6 +152,8 @@ namespace HowToFishMon
             WildAggroRange = Config.Bind("Battle", "WildAggroRange", 20f, "How close (to YOU) a hostile non-boss creature must be before your FishMon goes for it.");
             WildFoeLevel = Config.Bind("Battle", "WildFoeLevel", 15, "Battle level of hostile non-boss creatures.");
             AutoSendNext = Config.Bind("Battle", "AutoSendNext", true, "When your FishMon faints, automatically send out the next healthy one.");
+            RoamAroundYou = Config.Bind("Following", "RoamAroundYou", true, "Your FishMon wanders around near you, mostly where you're looking, instead of trailing right behind you.");
+            RoamRadius = Config.Bind("Following", "RoamRadius", 7f, "How far (metres) from you a roaming FishMon may wander.");
             CompanionScale = Config.Bind("Visuals", "CompanionScale", 1f, "Size multiplier for FishMon out in the world.");
             AttackEffects = Config.Bind("Visuals", "AttackEffects", true, "Type-themed lights, splashes, lightning, lava, trails and sounds on attacks.");
 

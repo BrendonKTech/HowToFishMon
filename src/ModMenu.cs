@@ -53,6 +53,8 @@ namespace HowToFishMon
             F(Plugin.BossDamageToFishMultiplier, "Damage taken", "How hard bosses and creatures hit your FishMon. 0 = they can't be hurt.", 0f, 3f, "x");
             F(Plugin.AttackSpeedMultiplier, "Attack speed", "How often your FishMon leap at their target.", 0.25f, 4f, "x");
             F(Plugin.CompanionScale, "Size", "How big FishMon are out in the world (applies the next time one is sent out).", 0.3f, 3f, "x");
+            B(Plugin.RoamAroundYou, "Roam around you", "Wander near you, mostly where you're looking, instead of trailing behind you.");
+            F(Plugin.RoamRadius, "Roam distance", "How far from you a roaming FishMon may wander.", 3f, 20f, "m");
             B(Plugin.AutoSendNext, "Auto send next", "When your FishMon faints, send out the next healthy one.");
             B(Plugin.AttackEffects, "Attack effects", "Type-themed lights, splashes, lightning, trails and sounds.");
 

@@ -29,7 +29,7 @@ All the keys below are the defaults. You can change any of them in the Mod Menu 
 |---|---|
 | **Catching FishMon** | The catching mechanic is pretty simple. You play the game normally, catch a fish using your own fishing rod, and then beat it up until it's no longer flopping around. Once it's dead, you can pick it up with **E** to add it to your collection! You'll get a little "Gotcha!" message showing its level, IVs, and nature. Fish you buy or find won't count unless you change `OnlyCatchHooked = false` in the config. |
 | **F6 - Main Menu** | Pressing F6 opens the main menu where you'll find your party, Fishdex, moves, and other features. You can check your FishMon's stats, change your party around, rename them, heal them, and more. |
-| **F7 - Send Out / Recall** | This lets you throw out or recall your currently selected FishMon. It'll follow you around and even swim when you're in the water! |
+| **F7 - Send Out / Recall** | This lets you throw out or recall your currently selected FishMon. It'll roam around near you (mostly where you're looking, so you don't have to turn around to see it) and even swim when you're in the water! Turn off **Roam around you** in the Mod Menu if you'd rather it trail behind you. |
 | **F8 - Switch FishMon** | Using F8 switches to your next FishMon in order from top to bottom. It'll automatically skip any FishMon that have fainted. |
 | **F9 - Settings Menu** | I added a settings menu that lets you mess around with a LOT of the mod's features. You can change things like HP, damage, EXP rates, boss levels, and even the size of your FishMon. Want a massive fish following you around? You can do that too! |
 | **G - Attack** | Look at a creature and press G to tell your FishMon to attack it. You'll see a red target marker appear over whatever you're looking at. Press G again while looking at nothing to call it back. |
@@ -189,6 +189,7 @@ There's quite a bit you can change here, including:
 - Healing and revive costs.
 - Catch levels.
 - Party size.
+- Roaming: whether your FishMon wanders around you, and how far.
 - Attack effects.
 
 FishMon HP is set to **2x by default**. If your FishMon are getting knocked out too quickly, you can increase their HP or lower the Damage Taken setting.

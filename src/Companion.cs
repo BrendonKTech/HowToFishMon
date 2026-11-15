@@ -457,6 +457,7 @@ namespace HowToFishMon
             if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
             fwd.Normalize();
             Vector3 right = Vector3.Cross(Vector3.up, fwd);
+            if (!Staying && Plugin.RoamAroundYou.Value) { DoRoam(player, fwd, dt); return; }
             Vector3 goal = Staying ? _stayPos : PlayerPos(player) - fwd * 2.2f + right * 1.5f;
 
             Vector3 flat = goal - transform.position; flat.y = 0f;
@@ -475,6 +476,69 @@ namespace HowToFishMon
             }
             MoveFlat(flat, dist, dist > 8f ? MoveSpeed * 2f : MoveSpeed, 0.6f, dt);
             if (dist < 0.6f) FaceYaw(PlayerYaw(player), dt * 2f);
+        }
+
+        // roaming: wander between random spots near the player, mostly in front of the camera
+        private Vector3 _roamGoal;
+        private bool _hasRoamGoal;
+        private float _roamIdle;
+
+        private void DoRoam(Player player, Vector3 fwd, float dt)
+        {
+            Vector3 me = PlayerPos(player);
+            float radius = Mathf.Max(2.5f, Plugin.RoamRadius.Value);
+            Vector3 fromPlayer = transform.position - me; fromPlayer.y = 0f;
+            float distToPlayer = fromPlayer.magnitude;
+
+            // way too far (fell behind, player teleported): pop over next to them
+            if (distToPlayer > 35f + radius)
+            {
+                Vector3 to = PickRoamSpot(me, fwd, radius);
+                Effects(transform.position, "Poof", true);
+                transform.position = new Vector3(to.x, SurfaceY(to, out _inWater) + HalfHeight, to.z);
+                Effects(transform.position, "Poof", true);
+                _hasRoamGoal = false;
+                return;
+            }
+
+            Vector3 goalFromPlayer = _roamGoal - me; goalFromPlayer.y = 0f;
+            bool goalTooFar = goalFromPlayer.magnitude > radius + 1.5f;  // player walked away from it
+            bool tooFar = distToPlayer > radius + 3f;
+            if (!_hasRoamGoal || goalTooFar || (_roamIdle <= 0f && ReachedRoamGoal()))
+            {
+                _roamGoal = PickRoamSpot(me, fwd, radius);
+                _hasRoamGoal = true;
+                _roamIdle = Random.Range(1.5f, 4.5f);
+            }
+
+            Vector3 flat = _roamGoal - transform.position; flat.y = 0f;
+            float dist = flat.magnitude;
+            // stroll when close, hurry to catch up when the player has moved off
+            float speed = tooFar ? MoveSpeed * 2f : (dist > 6f ? MoveSpeed : MoveSpeed * 0.55f);
+            MoveFlat(flat, dist, speed, 0.5f, dt);
+
+            if (dist <= 0.5f)
+            {
+                _roamIdle -= dt;
+                // idle: look over at the player
+                Vector3 look = me - transform.position; look.y = 0f;
+                if (look.sqrMagnitude > 0.01f) FaceYaw(Quaternion.LookRotation(look).eulerAngles.y, dt * 2f);
+            }
+        }
+
+        private bool ReachedRoamGoal()
+        {
+            Vector3 d = _roamGoal - transform.position; d.y = 0f;
+            return d.magnitude <= 0.6f;
+        }
+
+        // random spot 2m..radius from the player; usually within the camera's view, sometimes anywhere
+        private Vector3 PickRoamSpot(Vector3 me, Vector3 fwd, float radius)
+        {
+            float baseYaw = Quaternion.LookRotation(fwd).eulerAngles.y;
+            float yaw = Random.value < 0.8f ? baseYaw + Random.Range(-55f, 55f) : Random.Range(0f, 360f);
+            float r = Random.Range(Mathf.Min(2f, radius * 0.5f), radius);
+            return me + Quaternion.Euler(0f, yaw, 0f) * Vector3.forward * r;
         }
 
         private void DoEngage(float dt)
