@@ -42,6 +42,20 @@ namespace HowToFishMon
 
         public static void GiveExp(FishMon mon, int exp, int[] evYield)
         {
+            if (mon.Has(Ability.Scholar) && exp > 0) exp = mon.CarryExp(exp * Abilities.ScholarExp);
+            GrantExp(mon, exp, evYield);
+
+            // Mentor: everyone else in the party learns a bit from it (EXP only, no EVs)
+            if (mon.Has(Ability.Mentor) && exp > 0 && FishMonStorage.Party.Contains(mon))
+            {
+                foreach (var other in FishMonStorage.Party.ToList())
+                    if (other != mon && !other.Fainted && (!Active || Active.Mon != other))
+                        GrantExp(other, other.CarryExp(exp * Abilities.MentorShare), null);
+            }
+        }
+
+        private static void GrantExp(FishMon mon, int exp, int[] evYield)
+        {
             var lines = mon.GainExp(exp, evYield);
             foreach (var line in lines) ShowToast(line, new Color(0.7f, 0.85f, 1f));
             if (lines.Count > 0 && Active && Active.Mon == mon) Active.RefreshMoves();

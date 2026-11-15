@@ -55,6 +55,15 @@ namespace HowToFishMon
         public int ObjectId;
     }
 
+    // guest -> host only: abilities that need the host (healing you, digging up loot, sell bonus, faster bites)
+    public struct MonAbilityMsg : IBroadcast
+    {
+        public const byte State = 0, Heal = 1, Dig = 2;
+        public byte Kind;
+        public string Ability;   // State: the ability of the FishMon it has out ("" = none / switched off). Sent by name, not number.
+        public Vector3 Pos;      // Dig: where
+    }
+
     // sends your FishMon to other players and shows theirs
     public static class Net
     {
@@ -69,6 +78,11 @@ namespace HowToFishMon
         private static float _posTimer, _infoTimer;
         private static Companion _lastActive;
         private static string _lastInfoKey = "";
+
+        // host: the ability each guest's FishMon has out right now
+        private static readonly Dictionary<int, Ability> _remoteAbility = new Dictionary<int, Ability>();
+
+        public static Ability RemoteAbility(int clientId) => _remoteAbility.TryGetValue(clientId, out var a) ? a : Ability.None;
 
         private static NetworkManager Manager
         {
@@ -135,6 +149,31 @@ namespace HowToFishMon
         {
             GenericWriter<MonSellMsg>.SetWrite((w, m) => w.WriteInt32(m.ObjectId));
             GenericReader<MonSellMsg>.SetRead(r => new MonSellMsg { ObjectId = r.ReadInt32() });
+            GenericWriter<MonAbilityMsg>.SetWrite((w, m) => { w.WriteUInt8Unpacked(m.Kind); w.WriteString(m.Ability ?? ""); w.WriteVector3(m.Pos); });
+            GenericReader<MonAbilityMsg>.SetRead(r => new MonAbilityMsg { Kind = r.ReadUInt8Unpacked(), Ability = r.ReadStringAllocated(), Pos = r.ReadVector3() });
+        }
+
+        // guest: ask the host to do something for our FishMon's ability
+        public static bool SendAbility(byte kind, Vector3 pos = default)
+        {
+            if (!ClientOnline(_registeredOn)) return false;
+            Send(new MonAbilityMsg { Kind = kind, Pos = pos });
+            return true;
+        }
+
+        // host: a guest's FishMon ability wants something
+        private static void OnAbilityMsg(NetworkConnection from, MonAbilityMsg m)
+        {
+            var player = PlayerFor(from.ClientId);
+            if (m.Kind == MonAbilityMsg.State)
+            {
+                _remoteAbility[from.ClientId] = System.Enum.TryParse(m.Ability, out Ability a) ? a : Ability.None;
+                return;
+            }
+            if (!player) return;
+            var has = RemoteAbility(from.ClientId);
+            if (m.Kind == MonAbilityMsg.Heal && has == Ability.Medic) Medic.HealOnServer(player);
+            else if (m.Kind == MonAbilityMsg.Dig && has == Ability.TreasureHunter) TreasureHunter.DigOnServer(player, m.Pos);
         }
 
         // guest: ask the host to sell an item for our Merchant
@@ -156,6 +195,7 @@ namespace HowToFishMon
             nm.ServerManager.RegisterBroadcast<MonPosMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonAttackMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonSellMsg>((conn, m, ch) => Safe(() => Merchant.OnSellRequest(conn, m.ObjectId)));
+            nm.ServerManager.RegisterBroadcast<MonAbilityMsg>((conn, m, ch) => Safe(() => OnAbilityMsg(conn, m)));
 
             // every client: show other players' FishMon
             nm.ClientManager.RegisterBroadcast<MonInfoMsg>((m, ch) => Safe(() => OnInfo(m)));
@@ -194,6 +234,7 @@ namespace HowToFishMon
             EnsureRegistered(nm);
             if (!ClientOnline(nm))
             {
+                _remoteAbility.Clear();
                 if (Remotes.Count > 0) ClearRemotes();
                 _lastActive = null;
                 _lastInfoKey = "";
@@ -236,11 +277,14 @@ namespace HowToFishMon
         {
             if (!c) return "";
             var m = c.Mon;
-            return $"{m.Uid}|{m.Level}|{m.Stage}|{m.DisplayName}|{m.SpeciesId}";
+            return $"{m.Uid}|{m.Level}|{m.Stage}|{m.DisplayName}|{m.SpeciesId}|{m.Ability}|{m.AbilityOn}";
         }
 
         private static void SendInfo(Companion c)
         {
+            // tell the host which ability we have out (it applies the ones that run on its side). It's resent with
+            // every info heartbeat, so a host that joined or reloaded catches up.
+            if (!IsHost) Send(new MonAbilityMsg { Kind = MonAbilityMsg.State, Ability = c && c.Mon.AbilityOn ? c.Mon.Ability.ToString() : "" });
             if (!c) { Send(new MonInfoMsg { Out = false }); return; }
             var m = c.Mon;
             Send(new MonInfoMsg
@@ -327,6 +371,11 @@ namespace HowToFishMon
                 }
             }
             foreach (var id in _dead) Remotes.Remove(id);
+
+            // forget the abilities of players who left
+            _dead.Clear();
+            foreach (var id in _remoteAbility.Keys) if (!PlayerFor(id)) _dead.Add(id);
+            foreach (var id in _dead) _remoteAbility.Remove(id);
         }
 
         public static void ClearRemotes()

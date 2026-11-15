@@ -99,6 +99,9 @@ namespace HowToFishMon
         public static HitResult FishHitsBoss(FishMon f, BossMon b, Move m, float mult = 1f)
         {
             bool phys = m.Category == MoveCategory.Physical;
+            // Berserker: the more HP it has lost, the harder it hits
+            if (f.Has(Ability.Berserker))
+                mult *= 1f + Abilities.BerserkerMax * (1f - Mathf.Clamp01(f.CurrentHp / (float)Mathf.Max(1, f.MaxHp)));
             return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
                 m, f.Type1, f.Type2, b.Type1, b.Type2, mult);
         }
@@ -106,8 +109,9 @@ namespace HowToFishMon
         public static HitResult BossHitsFish(BossMon b, FishMon f, Move m)
         {
             bool phys = m.Category == MoveCategory.Physical;
+            float mult = Plugin.BossDamageToFishMultiplier.Value * (f.Has(Ability.ThickScales) ? Abilities.ThickScalesTaken : 1f);
             return Calc(b.Level, b.Stats[phys ? Stat.Atk : Stat.SpA], f.CalcStat(phys ? Stat.Def : Stat.SpD),
-                m, b.Type1, b.Type2, f.Type1, f.Type2, Plugin.BossDamageToFishMultiplier.Value);
+                m, b.Type1, b.Type2, f.Type1, f.Type2, mult);
         }
 
         // a hit that takes X% of the boss's battle HP removes X% of its real HP bar

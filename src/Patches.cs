@@ -45,9 +45,11 @@ namespace HowToFishMon
                 if (!Caught.Add(c)) return;
                 HookPatch.HookedByMe.Remove(c);
 
-                var mon = Species.CreateFromCreature(c);
+                bool lucky = Abilities.PlayerHas(player, Ability.LuckyCharm);
+                var mon = Species.CreateFromCreature(c, lucky);
                 bool party = FishMonStorage.Add(mon);
                 FishMonController.OnCaught(mon, party);
+                if (lucky) FishMonController.ShowToast($"{FishMonController.Active.Mon.DisplayName}'s Lucky Charm gave {mon.SpeciesName} a boost!", new UnityEngine.Color(1f, 0.75f, 0.3f), 4f);
             }
             catch (System.Exception e)
             {

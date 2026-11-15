@@ -98,18 +98,43 @@ namespace HowToFishMon
     {
         public static Vector3 ItemPos(Item it) => it.Rig ? it.Rig.worldCenterOfMass : it.transform.position;
 
-        // a dead creature lying on the ground that this player dropped, and that isn't cooking on a grill
+        // what a Merchant will sell, lying on the ground near you:
+        //  - dead creatures you dropped (but not ones you hooked and haven't picked up yet, those are catches!)
+        //  - loot nobody has picked up yet: dead creatures (baby piranhas...) and boss meat chunks
+        // never: tools, weapons, boss trophies, other players' drops, or anything cooking on a grill
         public static bool CanSell(Item it, Player owner)
         {
             if (!it || it.IsDestroying || it.IsDeinitializing || it.DeadPlayer) return false;
             if (it.Holder || it.HasPlayerHolder || it.BirdHolder || it.AttachedRod) return false;
-            if (!it.Creature || !it.Creature.IsDead) return false;
-            if (!owner || it.LastHolder != owner) return false;
-            if (it.TotalWorth <= 0) return false;
+            if (!owner || it.TotalWorth <= 0) return false;
+
+            bool mine = it.LastHolder == owner;
+            bool untouched = !it.LastHolder;
+            if (!mine && !untouched) return false;
+
+            if (it.Creature)
+            {
+                if (!it.Creature.IsDead) return false;
+                if (HookPatch.HookedByMe.Contains(it.Creature)) return false; // not caught yet
+            }
+            else if (!IsMeat(it)) return false;
+
             return !OnGrill(it);
         }
 
-        // host only: sell it exactly like the game's NPC does (adds the money, then the fish shrinks away)
+        // boss meat chunks are plain items (not creatures). Recognised by their prefab name.
+        private static readonly HashSet<string> _loggedNames = new HashSet<string>();
+        private static bool IsMeat(Item it)
+        {
+            if (it.GetType() != typeof(Item) || it.Type == ItemType.Weapon) return false;
+            string name = it.gameObject.name ?? "";
+            if (name.IndexOf("meat", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            // so we can see what else is lying around if something should be sellable but isn't
+            if (_loggedNames.Add(name)) Plugin.Log.LogInfo($"Merchant ignores item '{name}' (${it.TotalWorth}).");
+            return false;
+        }
+
+        // host only: same as the sell box (adds the money), then removes the item with the game's normal poof
         public static bool SellOnServer(Item it, Player owner)
         {
             if (!MoneyManager.Instance || !MoneyManager.Instance.IsServerInitialized) return false;
@@ -117,7 +142,7 @@ namespace HowToFishMon
             try
             {
                 MoneyManager.SellItem(it);
-                it.DestroyItem((byte)DestroyReason.NPC, byte.MaxValue);
+                it.DestroyItem((byte)DestroyReason.Default); // (the NPC reason needs a real NPC id, otherwise the item never despawns)
                 return true;
             }
             catch (System.Exception e)
@@ -132,9 +157,11 @@ namespace HowToFishMon
         {
             var nm = FishNet.InstanceFinder.NetworkManager;
             if (!nm || !nm.ServerManager.Objects.Spawned.TryGetValue(objectId, out var nob) || !nob) return;
-            var it = nob.GetComponent<Item>() ?? nob.GetComponentInChildren<Item>();
-            if (!it || !it.LastHolder || it.LastHolder.Owner == null || it.LastHolder.Owner.ClientId != from.ClientId) return;
-            SellOnServer(it, it.LastHolder);
+            var it = nob.GetComponent<Item>();
+            if (!it) it = nob.GetComponentInChildren<Item>();
+            var seller = PlayerManager.Players.Find(p => p && p.Owner != null && p.Owner.ClientId == from.ClientId);
+            if (!it || !seller) return;
+            SellOnServer(it, seller); // CanSell checks it's the guest's own drop or untouched loot
         }
 
         // grills keep their items in a private list

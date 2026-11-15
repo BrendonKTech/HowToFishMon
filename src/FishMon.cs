@@ -42,6 +42,16 @@ namespace HowToFishMon
         public bool Has(Ability a) => Ability == a && AbilityOn;
 
         [JsonIgnore] public float RegenCarry;
+        // leftover fractions of bonus EXP (Scholar, Mentor), so small hits still add up
+        [JsonIgnore] public float ExpCarry;
+
+        public int CarryExp(float amount)
+        {
+            ExpCarry += amount;
+            int whole = Mathf.FloorToInt(ExpCarry);
+            ExpCarry -= whole;
+            return whole;
+        }
         // set when it evolved; the controller swaps the model and clears it
         [JsonIgnore] public bool JustEvolved;
         [JsonIgnore] public string DisplayName => string.IsNullOrEmpty(Nickname) ? SpeciesName : Nickname;
@@ -309,7 +319,8 @@ namespace HowToFishMon
             return info;
         }
 
-        public static FishMon CreateFromCreature(Creature c)
+        // lucky = caught with a Lucky Charm out: IVs and level are rolled twice, keeping the better roll
+        public static FishMon CreateFromCreature(Creature c, bool lucky = false)
         {
             var info = Describe(c);
             var rng = new System.Random();
@@ -327,7 +338,7 @@ namespace HowToFishMon
                 Type2 = info.Type2,
             };
             mon.Ability = Abilities.Roll(rng, mon.Shiny);
-            for (int i = 0; i < 6; i++) mon.IVs[i] = rng.Next(32);
+            for (int i = 0; i < 6; i++) mon.IVs[i] = lucky ? Math.Max(rng.Next(32), rng.Next(32)) : rng.Next(32);
             if (mon.Shiny)
             {
                 // Drip (shiny) fish get 3 guaranteed perfect IVs
@@ -337,6 +348,7 @@ namespace HowToFishMon
             // level: random, nudged up by bigger-than-average weight rolls
             int min = Plugin.MinCatchLevel.Value, max = Math.Max(min, Plugin.MaxCatchLevel.Value);
             float roll = (float)rng.NextDouble();
+            if (lucky) roll = Math.Max(roll, (float)rng.NextDouble());
             roll = Mathf.Clamp01(roll * roll + (c.RandomizedWeight - 1f) * 0.8f); // most catches are low level
             mon.Level = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(min, max, roll)), 1, 100);
             mon.Exp = FishMon.ExpForLevel(mon.Level);

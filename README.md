@@ -56,20 +56,24 @@ Every FishMon rolls one ability when you catch it. Most are Common, some are Unc
 | Ability | Rarity | What it does |
 |---|---|---|
 | **Merchant** | Common | Picks up fish you drop near it and sells them for you. |
-| Scholar | Common | Gains 25% more EXP. *(coming soon)* |
-| Thick Scales | Common | Takes 20% less damage. *(coming soon)* |
-| Speedster | Common | Moves and attacks 25% faster. *(coming soon)* |
-| Guard | Uncommon | Stays close and goes after anything that hurts you. *(coming soon)* |
-| Angler | Uncommon | Helps you fish: bites come faster. *(coming soon)* |
-| Berserker | Uncommon | Hits harder the lower its HP is. *(coming soon)* |
-| Mentor | Uncommon | Benched party members get a share of its EXP. *(coming soon)* |
-| Medic | Rare | Slowly heals you while it's out. *(coming soon)* |
-| Treasure Hunter | Rare | Now and then digs up random loot. *(coming soon)* |
-| Leech | Rare | Heals itself for part of the damage it deals. *(coming soon)* |
-| Haggler | Rare | Fish you sell while it's out are worth 25% more. *(coming soon)* |
-| Lucky Charm | Legendary | Fish you catch while it's out get better IVs and levels. *(coming soon)* |
+| **Scholar** | Common | Gains 25% more EXP. |
+| **Thick Scales** | Common | Takes 20% less damage. |
+| **Speedster** | Common | Moves and attacks 25% faster. |
+| **Guard** | Uncommon | Stays close (within 3.5 m) and goes after anything that hurts you. |
+| **Angler** | Uncommon | Helps you fish: bites come about a third sooner. |
+| **Berserker** | Uncommon | Hits up to 50% harder the lower its HP is. |
+| **Mentor** | Uncommon | Party members on the bench get 30% of the EXP it earns. |
+| **Medic** | Rare | Heals you 2 HP every 4 seconds while it's out. |
+| **Treasure Hunter** | Rare | Every 2-4 minutes digs up a dead fish (sometimes a Drip!) or $15-60. |
+| **Leech** | Rare | Heals itself for 15% of the damage it deals. |
+| **Haggler** | Rare | Fish you sell while it's out are worth 25% more. |
+| **Lucky Charm** | Legendary | Fish you catch while it's out get better IVs and levels (each is rolled twice, the better roll wins). |
 
-**Merchant:** drop a dead fish within about 14 m of you and leave it for a couple of seconds. Your Merchant runs over and sells it, the same as the sell box. It won't take fish off a grill, fish other players dropped, or fish you're holding. In someone else's world, the host needs the mod for selling to work.
+**Merchant:** drop a dead fish within about 14 m of you and leave it for a couple of seconds. Your Merchant runs over and sells it, the same as the sell box. It also sells loot nobody has picked up yet, like dead baby piranhas and boss meat chunks. It won't touch fish you've hooked but haven't picked up yet (so you still get to catch them), fish other players dropped, boss trophies, tools, or anything on a grill. In someone else's world, the host needs the mod for selling to work.
+
+**Guard:** when you lose health, your Guard goes after the closest hostile creature near you (or the boss, if nothing else is close). It won't override a target you picked with **G**.
+
+**Abilities in multiplayer:** Medic, Angler, Treasure Hunter and Haggler work through the host, so in someone else's world the host needs this version of the mod for them to work. The rest work anywhere.
 
 FishMon caught before abilities were added get a random one the first time you load the new version.
 
@@ -269,7 +273,8 @@ Here's a quick breakdown of what each file does:
 - `src/RemoteCompanion.cs` - Handles displaying other players' FishMon.
 - `src/Fx.cs` - Handles attack effects, trails, sounds, and other visual effects.
 - `src/Styles.cs` - UI drawing helpers.
-- `src/Data/` - Contains the type chart, moves, natures, and evolution chains.
+- `src/Data/` - Contains the type chart, moves, natures, evolution chains, and the ability list.
+- `src/Abilities/` - The abilities that hook into the game: Merchant, Guard, Medic, Treasure Hunter, Haggler and Angler. (The simpler ones, like Scholar and Leech, are a line or two where EXP and damage are worked out.)
 
 ---
 

@@ -340,7 +340,10 @@ namespace HowToFishMon
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
 
+            TickGuard(player);
             UpdateTarget(player);
+            TickMedic(player, dt);
+            TickTreasure(player, dt);
 
             switch (_state)
             {
@@ -449,7 +452,8 @@ namespace HowToFishMon
             if (_state == State.Follow) _state = State.Engage;
         }
 
-        private float MoveSpeed => (4f + Mon.CalcStat(Stat.Spe) / 25f);
+        private float SpeedMult => Mon.Has(Ability.Speedster) ? Abilities.SpeedsterSpeed : 1f;
+        private float MoveSpeed => (4f + Mon.CalcStat(Stat.Spe) / 25f) * SpeedMult;
 
         private void DoFollow(Player player, float dt)
         {
@@ -488,6 +492,7 @@ namespace HowToFishMon
         {
             Vector3 me = PlayerPos(player);
             float radius = Mathf.Max(2.5f, Plugin.RoamRadius.Value);
+            if (Mon.Has(Ability.Guard)) radius = Mathf.Min(radius, Abilities.GuardRoamRadius); // a Guard sticks close
             Vector3 fromPlayer = transform.position - me; fromPlayer.y = 0f;
             float distToPlayer = fromPlayer.magnitude;
 
@@ -673,7 +678,7 @@ namespace HowToFishMon
                 _state = _boss != null && !_boss.Dead ? State.Engage : State.Follow;
                 float spe = Mon.CalcStat(Stat.Spe);
                 _attackCooldown = Mathf.Clamp(3.2f - spe * 0.015f, 0.8f, 3.2f) / Mathf.Max(0.1f, Plugin.AttackSpeedMultiplier.Value)
-                                  * (0.85f + Combat.Random01() * 0.3f);
+                                  * (0.85f + Combat.Random01() * 0.3f) / SpeedMult;
                 if (_inWater) Effects(transform.position, "FishCaught_Splash", true);
             }
         }
@@ -705,9 +710,10 @@ namespace HowToFishMon
             if (h.Crit) extra = "Critical hit! " + extra;
             if (extra.Length > 0) FishMonController.AddFloat(at + Vector3.up * 0.5f, extra, h.Eff >= 2f ? new Color(0.7f, 1f, 0.5f) : new Color(1f, 0.85f, 0.5f));
 
-            if (_pendingMove.DrainPercent > 0f)
+            float drain = _pendingMove.DrainPercent + (Mon.Has(Ability.Leech) ? Abilities.LeechHeal : 0f);
+            if (drain > 0f)
             {
-                int heal = Mathf.Max(1, Mathf.RoundToInt(h.Damage * _pendingMove.DrainPercent));
+                int heal = Mathf.Max(1, Mathf.RoundToInt(h.Damage * drain));
                 Mon.CurrentHp = Mathf.Min(Mon.MaxHp, Mon.CurrentHp + heal);
                 FishMonController.AddFloat(transform.position + Vector3.up, "+" + heal, new Color(0.5f, 1f, 0.5f));
             }
@@ -759,6 +765,7 @@ namespace HowToFishMon
                 Net.SendAttack(3, move, pos, dir, h.Eff, h.Crit, false);
                 Fishdex.MarkSeen(c);
                 hits++;
+                if (Mon.Has(Ability.Leech)) Mon.CurrentHp = Mathf.Min(Mon.MaxHp, Mon.CurrentHp + Mathf.Max(1, Mathf.RoundToInt(h.Damage * Abilities.LeechHeal)));
 
                 _expCarry += foe.FullExp * 0.5f * real / (float)foe.RealMaxHp;
                 if (kills)
