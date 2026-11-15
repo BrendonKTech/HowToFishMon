@@ -12,6 +12,8 @@ namespace HowToFishMon
         public float HpFrac { get; private set; } = 1f;
         public float HalfHeight { get; private set; } = 0.3f;
         public float LastHeard { get; private set; }
+        public StatusState Status { get; } = new StatusState();
+        private float _zzzAt;
 
         private Transform _body;
         private TrailRenderer _trail;
@@ -103,6 +105,16 @@ namespace HowToFishMon
             HpFrac = m.HpFrac;
         }
 
+        public void SetStatus(StatusCond cond, float seconds)
+        {
+            LastHeard = Time.unscaledTime;
+            bool isNew = cond != StatusCond.None && !Statuses.Is(Status, cond);
+            if (cond == StatusCond.None || seconds <= 0f) { Status.Clear(); return; }
+            Status.Cond = cond;
+            Status.Until = Time.time + seconds;
+            if (isNew && Plugin.AttackEffects.Value) Fx.Burst(transform.position, Statuses.ColorOf(cond), 8, 1f);
+        }
+
         public void OnAttack(MonAttackMsg m)
         {
             LastHeard = Time.unscaledTime;
@@ -167,6 +179,11 @@ namespace HowToFishMon
             transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
 
             if (_trail && _trail.emitting && _state != Companion.LungeState && Time.time - _lungeStart > 1.2f) _trail.emitting = false;
+            if (Statuses.Is(Status, StatusCond.Sleep) && Time.time >= _zzzAt)
+            {
+                _zzzAt = Time.time + 1.5f;
+                FishMonController.AddFloat(transform.position + Vector3.up * (HalfHeight + 0.8f), "Zzz", Statuses.ColorOf(StatusCond.Sleep), 1.2f);
+            }
             AnimateBody(dt);
         }
 

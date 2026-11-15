@@ -64,6 +64,26 @@ namespace HowToFishMon
         public Vector3 Pos;      // Dig: where
     }
 
+    // a status condition: on the sender's own FishMon (Foe = false) or on a creature it's fighting (Foe = true)
+    public struct MonStatusMsg : IBroadcast
+    {
+        public int Owner;
+        public bool Foe;
+        public int ObjectId;   // the creature's network id (Foe only)
+        public byte Cond;      // StatusCond, None = cured
+        public float Seconds;  // how long it has left
+    }
+
+    // trading. Relayed to everyone, only the player it's addressed To acts on it (see Trade.cs)
+    public struct MonTradeMsg : IBroadcast
+    {
+        public int Owner;
+        public int To;
+        public byte Kind;
+        public int Session;
+        public string Payload;
+    }
+
     // sends your FishMon to other players and shows theirs
     public static class Net
     {
@@ -83,6 +103,26 @@ namespace HowToFishMon
         private static readonly Dictionary<int, Ability> _remoteAbility = new Dictionary<int, Ability>();
 
         public static Ability RemoteAbility(int clientId) => _remoteAbility.TryGetValue(clientId, out var a) ? a : Ability.None;
+
+        // players with the mod (they send info heartbeats every few seconds), for the trade menu
+        private static readonly Dictionary<int, float> _modPlayers = new Dictionary<int, float>();
+
+        public static List<Player> ModPlayers()
+        {
+            var list = new List<Player>();
+            foreach (var kv in _modPlayers)
+            {
+                if (Time.unscaledTime - kv.Value > RemoteTimeout || IsMe(kv.Key)) continue;
+                var p = PlayerFor(kv.Key);
+                if (p) list.Add(p);
+            }
+            return list;
+        }
+
+        public static int MyClientId
+        {
+            get { var me = Player.LocalPlayer; return me && me.Owner != null ? me.Owner.ClientId : -1; }
+        }
 
         private static NetworkManager Manager
         {
@@ -151,6 +191,59 @@ namespace HowToFishMon
             GenericReader<MonSellMsg>.SetRead(r => new MonSellMsg { ObjectId = r.ReadInt32() });
             GenericWriter<MonAbilityMsg>.SetWrite((w, m) => { w.WriteUInt8Unpacked(m.Kind); w.WriteString(m.Ability ?? ""); w.WriteVector3(m.Pos); });
             GenericReader<MonAbilityMsg>.SetRead(r => new MonAbilityMsg { Kind = r.ReadUInt8Unpacked(), Ability = r.ReadStringAllocated(), Pos = r.ReadVector3() });
+
+            GenericWriter<MonStatusMsg>.SetWrite((w, m) =>
+            {
+                w.WriteInt32(m.Owner); w.WriteBoolean(m.Foe); w.WriteInt32(m.ObjectId); w.WriteUInt8Unpacked(m.Cond); w.WriteSingle(m.Seconds);
+            });
+            GenericReader<MonStatusMsg>.SetRead(r => new MonStatusMsg
+            {
+                Owner = r.ReadInt32(), Foe = r.ReadBoolean(), ObjectId = r.ReadInt32(), Cond = r.ReadUInt8Unpacked(), Seconds = r.ReadSingle(),
+            });
+
+            GenericWriter<MonTradeMsg>.SetWrite((w, m) =>
+            {
+                w.WriteInt32(m.Owner); w.WriteInt32(m.To); w.WriteUInt8Unpacked(m.Kind); w.WriteInt32(m.Session); w.WriteString(m.Payload ?? "");
+            });
+            GenericReader<MonTradeMsg>.SetRead(r => new MonTradeMsg
+            {
+                Owner = r.ReadInt32(), To = r.ReadInt32(), Kind = r.ReadUInt8Unpacked(), Session = r.ReadInt32(), Payload = r.ReadStringAllocated(),
+            });
+        }
+
+        // status conditions, so other players see BRN / PAR... on our FishMon and on what it's fighting
+        public static void SendStatus(StatusState s)
+        {
+            Send(new MonStatusMsg { Foe = false, Cond = (byte)(Statuses.Has(s) ? s.Cond : StatusCond.None), Seconds = Remaining(s) });
+        }
+
+        public static void SendFoeStatus(Creature c, StatusState s)
+        {
+            if (!c || !c.NetworkObject) return;
+            Send(new MonStatusMsg { Foe = true, ObjectId = c.NetworkObject.ObjectId, Cond = (byte)(Statuses.Has(s) ? s.Cond : StatusCond.None), Seconds = Remaining(s) });
+        }
+
+        private static float Remaining(StatusState s) => Statuses.Has(s) ? s.Until - Time.time : 0f;
+
+        private static void OnStatus(MonStatusMsg m)
+        {
+            if (IsMe(m.Owner)) return;
+            var cond = (StatusCond)m.Cond;
+            if (!m.Foe)
+            {
+                if (Remotes.TryGetValue(m.Owner, out var rc) && rc) rc.SetStatus(cond, m.Seconds);
+                return;
+            }
+            var nm = _registeredOn;
+            if (!nm || !nm.ClientManager.Objects.Spawned.TryGetValue(m.ObjectId, out var nob) || !nob) return;
+            var c = nob.GetComponent<Creature>();
+            if (!c) c = nob.GetComponentInChildren<Creature>();
+            if (c) Statuses.ShowRemoteFoe(c, cond, m.Seconds);
+        }
+
+        public static void SendTrade(int to, byte kind, int session, string payload = "")
+        {
+            Send(new MonTradeMsg { To = to, Kind = kind, Session = session, Payload = payload });
         }
 
         // guest: ask the host to do something for our FishMon's ability
@@ -196,11 +289,15 @@ namespace HowToFishMon
             nm.ServerManager.RegisterBroadcast<MonAttackMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonSellMsg>((conn, m, ch) => Safe(() => Merchant.OnSellRequest(conn, m.ObjectId)));
             nm.ServerManager.RegisterBroadcast<MonAbilityMsg>((conn, m, ch) => Safe(() => OnAbilityMsg(conn, m)));
+            nm.ServerManager.RegisterBroadcast<MonStatusMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
+            nm.ServerManager.RegisterBroadcast<MonTradeMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
 
             // every client: show other players' FishMon
             nm.ClientManager.RegisterBroadcast<MonInfoMsg>((m, ch) => Safe(() => OnInfo(m)));
             nm.ClientManager.RegisterBroadcast<MonPosMsg>((m, ch) => Safe(() => OnPos(m)));
             nm.ClientManager.RegisterBroadcast<MonAttackMsg>((m, ch) => Safe(() => OnAttack(m)));
+            nm.ClientManager.RegisterBroadcast<MonStatusMsg>((m, ch) => Safe(() => OnStatus(m)));
+            nm.ClientManager.RegisterBroadcast<MonTradeMsg>((m, ch) => Safe(() => { if (m.To == MyClientId) Trade.OnMessage(m); }));
             Plugin.Log.LogInfo("FishMon multiplayer sync ready.");
         }
 
@@ -235,6 +332,7 @@ namespace HowToFishMon
             if (!ClientOnline(nm))
             {
                 _remoteAbility.Clear();
+                _modPlayers.Clear();
                 if (Remotes.Count > 0) ClearRemotes();
                 _lastActive = null;
                 _lastInfoKey = "";
@@ -298,6 +396,8 @@ namespace HowToFishMon
                 Type2 = (byte)m.Type2,
                 Name = m.DisplayName,
             });
+            // so players who joined late still see its status
+            if (Statuses.Has(m.Status)) SendStatus(m.Status);
         }
 
         public static void SendAttack(byte kind, Move move, Vector3 pos, Vector3 dir, float eff, bool crit, bool inWater)
@@ -317,6 +417,7 @@ namespace HowToFishMon
         private static void OnInfo(MonInfoMsg m)
         {
             if (IsMe(m.Owner)) return;
+            _modPlayers[m.Owner] = Time.unscaledTime;
             Remotes.TryGetValue(m.Owner, out var rc);
             if (!m.Out)
             {

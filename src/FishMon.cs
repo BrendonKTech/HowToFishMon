@@ -37,6 +37,7 @@ namespace HowToFishMon
             set => AbilityName = value.ToString();
         }
         public bool AbilityOn = true;            // the player can switch it off in the party menu
+        public string TradedFrom = "";           // name of the player it came from, if it was traded
 
         [JsonIgnore] public AbilityInfo AbilityInfo => Abilities.Get(Ability);
         public bool Has(Ability a) => Ability == a && AbilityOn;

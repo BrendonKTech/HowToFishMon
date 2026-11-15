@@ -6,7 +6,7 @@ using UnityEngine;
 namespace HowToFishMon
 {
     // runs every frame: hotkeys, the companion, healing over time, the party menu and HUD
-    public class FishMonController : MonoBehaviour
+    public partial class FishMonController : MonoBehaviour
     {
         public static FishMonController Instance { get; private set; }
 
@@ -367,6 +367,14 @@ namespace HowToFishMon
             ShowToast("No other FishMon can fight right now.");
         }
 
+        // a FishMon leaving in a trade: call it back first if it's out
+        public static void ReleaseForTrade(FishMon m)
+        {
+            if (Active && Active.Mon == m) Recall(false);
+            if (Instance && Instance._selected == m) Instance._selected = null;
+            FishMonStorage.Release(m);
+        }
+
         public static void OnCompanionFainted(Companion c)
         {
             var mon = c.Mon;
@@ -423,6 +431,7 @@ namespace HowToFishMon
             Regenerate();
             if (inGame) ScanNearbyForDex(player);
             try { Statuses.TickFoes(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon status tick: " + e.Message); }
+            try { Trade.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon trade: " + e.Message); }
             try { Net.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon sync: " + e.Message); }
 
             if (FishMonStorage.Dirty)
@@ -482,6 +491,7 @@ namespace HowToFishMon
 
         private void SwitchSave(string world)
         {
+            Trade.Abort();
             Recall(false);
             Participants.Clear();
             _selected = null;
@@ -675,18 +685,21 @@ namespace HowToFishMon
                     }
                 }
 
-                // status tag over whatever it's fighting (BRN, PAR...)
-                var foe = Active.Target;
-                var fs = foe != null ? Statuses.FoePeek(foe.Creature) : null;
-                if (Statuses.Has(fs) && !foe.Dead && ToGui(cam, foe.Center + Vector3.up * 2f, out var fg))
-                {
-                    var fr = new Rect(fg.x - 28, fg.y - 12, 56, 24);
-                    Styles.Fill(fr, new Color(0f, 0f, 0f, 0.6f));
-                    var old = GUI.color;
-                    GUI.color = Statuses.ColorOf(fs.Cond);
-                    GUI.Label(fr, Statuses.Tag(fs.Cond), Styles.Plate);
-                    GUI.color = old;
-                }
+            }
+
+            // status tags over foes (BRN, PAR...), from our FishMon or other players'
+            foreach (var kv in Statuses.Shown())
+            {
+                var c = kv.Key;
+                if (c.IsDead) continue;
+                Vector3 top = (c.Rig ? c.Rig.worldCenterOfMass : c.transform.position) + Vector3.up * 2f;
+                if (Vector3.Distance(cam.transform.position, top) > 80f || !ToGui(cam, top, out var fg)) continue;
+                var fr = new Rect(fg.x - 28, fg.y - 12, 56, 24);
+                Styles.Fill(fr, new Color(0f, 0f, 0f, 0.6f));
+                var old = GUI.color;
+                GUI.color = Statuses.ColorOf(kv.Value.Cond);
+                GUI.Label(fr, Statuses.Tag(kv.Value.Cond), Styles.Plate);
+                GUI.color = old;
             }
 
             // other players' FishMon
@@ -701,7 +714,7 @@ namespace HowToFishMon
                 Styles.Fill(r, new Color(0f, 0f, 0f, 0.45f));
                 GUI.Label(new Rect(r.x + 6, r.y + 1, r.width - 12, 16), $"<size=11><color=#9fc4ff>{who}</color></size>", Styles.Plate);
                 string star = rc.Info.Shiny ? "<color=#ffd84a>★</color>" : "";
-                GUI.Label(new Rect(r.x + 6, r.y + 15, r.width - 12, 18), $"{star}{rc.Info.Name}  <size=12>Lv.{rc.Info.Level}</size>", Styles.Plate);
+                GUI.Label(new Rect(r.x + 6, r.y + 15, r.width - 12, 18), $"{star}{rc.Info.Name}  <size=12>Lv.{rc.Info.Level}{Statuses.RichTag(rc.Status)}</size>", Styles.Plate);
                 Styles.HpBar(new Rect(r.x + 6, r.y + 36, r.width - 12, 7), rc.HpFrac);
             }
 
@@ -785,17 +798,21 @@ namespace HowToFishMon
 
             GUI.Label(new Rect(win.x + 20, win.y + 12, 400, 36), "FishMon", Styles.Title);
             var list = _showingBox ? FishMonStorage.Box : FishMonStorage.Party;
-            if (Styles.Tab(new Rect(win.x + 220, win.y + 14, 150, 34), $"Party ({FishMonStorage.Party.Count}/{Plugin.MaxPartySize.Value})", !_showingBox && !_showingDex)) { _showingBox = false; _showingDex = false; _confirmRelease = null; }
-            if (Styles.Tab(new Rect(win.x + 376, win.y + 14, 130, 34), $"Box ({FishMonStorage.Box.Count})", _showingBox && !_showingDex)) { _showingBox = true; _showingDex = false; _confirmRelease = null; }
-            if (Styles.Tab(new Rect(win.x + 512, win.y + 14, 190, 34), $"Fishdex ({Fishdex.CaughtCount}/{Fishdex.Total})", _showingDex)) { _showingDex = true; _confirmRelease = null; CommitRename(); }
+            bool other = _showingDex || _showingTrade;
+            if (Styles.Tab(new Rect(win.x + 200, win.y + 14, 140, 34), $"Party ({FishMonStorage.Party.Count}/{Plugin.MaxPartySize.Value})", !_showingBox && !other)) { _showingBox = false; _showingDex = _showingTrade = false; _confirmRelease = null; }
+            if (Styles.Tab(new Rect(win.x + 346, win.y + 14, 110, 34), $"Box ({FishMonStorage.Box.Count})", _showingBox && !other)) { _showingBox = true; _showingDex = _showingTrade = false; _confirmRelease = null; }
+            if (Styles.Tab(new Rect(win.x + 462, win.y + 14, 170, 34), $"Fishdex ({Fishdex.CaughtCount}/{Fishdex.Total})", _showingDex)) { _showingDex = true; _showingTrade = false; _confirmRelease = null; CommitRename(); }
+            int invites = Trade.Invites.Count;
+            if (Styles.Tab(new Rect(win.x + 638, win.y + 14, 110, 34), invites > 0 ? $"Trade <color=#ffd84a>({invites})</color>" : "Trade", _showingTrade)) { _showingTrade = true; _showingDex = false; _confirmRelease = null; CommitRename(); }
 
-            if (GUI.Button(new Rect(win.x + 712, win.y + 14, 110, 34), "Settings", Styles.Button)) { SetModMenu(true); return; }
+            if (GUI.Button(new Rect(win.x + 756, win.y + 14, 100, 34), "Settings", Styles.Button)) { SetModMenu(true); return; }
             GUI.enabled = !(Active && Active.Engaged);
-            if (GUI.Button(new Rect(win.x + 830, win.y + 14, 146, 34), CostLabel("Heal All", Plugin.HealAllCost.Value), Styles.Button)) HealAll(Plugin.HealAllCost.Value);
+            if (GUI.Button(new Rect(win.x + 862, win.y + 14, 124, 34), CostLabel("Heal All", Plugin.HealAllCost.Value), Styles.Button)) HealAll(Plugin.HealAllCost.Value);
             GUI.enabled = true;
-            if (GUI.Button(new Rect(win.xMax - 56, win.y + 14, 40, 34), "X", Styles.Button)) { SetPartyOpen(false); return; }
+            if (GUI.Button(new Rect(win.xMax - 48, win.y + 14, 36, 34), "X", Styles.Button)) { SetPartyOpen(false); return; }
 
             if (_showingDex) { DrawDex(win, h); return; }
+            if (_showingTrade) { DrawTrade(win, h); return; }
 
             var listRect = new Rect(win.x + 16, win.y + 62, 330, h - 78);
             Styles.Fill(listRect, Styles.PanelDark);
@@ -852,7 +869,8 @@ namespace HowToFishMon
             GUI.Label(new Rect(x, y, w - 200, 36), star + m.DisplayName, Styles.Title);
             GUI.Label(new Rect(x + w - 190, y + 4, 190, 30), $"Lv. {m.Level}", Styles.TitleRight);
             y += 38;
-            GUI.Label(new Rect(x, y, w, 24), $"{m.SpeciesName}  ·  {Natures.All[m.Nature].name} nature  ·  {m.Weight:0.##} kg  ·  caught {m.CaughtOn}", Styles.Dim);
+            string origin = string.IsNullOrEmpty(m.TradedFrom) ? $"caught {m.CaughtOn}" : $"traded from {m.TradedFrom}";
+            GUI.Label(new Rect(x, y, w, 24), $"{m.SpeciesName}  ·  {Natures.All[m.Nature].name} nature  ·  {m.Weight:0.##} kg  ·  {origin}", Styles.Dim);
             y += 28;
             Styles.TypeChip(new Rect(x, y, 90, 24), m.Type1);
             if (m.Type2 != MonType.None) Styles.TypeChip(new Rect(x + 96, y, 90, 24), m.Type2);

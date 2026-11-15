@@ -166,6 +166,16 @@ namespace HowToFishMon
             return toParty;
         }
 
+        // a FishMon you got in a trade: counts for the Fishdex, but not as one you caught yourself
+        public static bool AddTraded(FishMon mon)
+        {
+            Fishdex.RecordCatch(mon);
+            bool toParty = Party.Count < Plugin.MaxPartySize.Value;
+            if (toParty) Party.Add(mon); else Box.Add(mon);
+            Save();
+            return toParty;
+        }
+
         public static void Release(FishMon mon)
         {
             Party.Remove(mon);

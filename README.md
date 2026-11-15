@@ -156,6 +156,19 @@ You'll see:
 - Their level and current HP.
 - Their attacks, move names, trails, and effects.
 
+- Status conditions on their FishMon (BRN, PAR...) and on whatever it's fighting.
+
+### Trading
+
+You can trade FishMon with other players who have the mod:
+
+1. Press **F6** and open the **Trade** tab. Everyone in the world with the mod is listed on the left.
+2. Press **Trade** next to a player. They get a message and can accept from their own Trade tab.
+3. Each of you picks a FishMon from your party or Box. You'll see the other player's offer with its level, types, nature, ability, IVs and moves.
+4. When you're both happy, you both press **Confirm trade**. Confirming locks your offer in. If either of you changes your offer, both confirmations reset.
+
+Traded FishMon keep their nickname, level, IVs, EVs, moves and ability. They count towards your Fishdex, and their info page says who you got them from. If your party is full, they go to your Box.
+
 There are a couple of things to know:
 
 - **The host MUST have the mod installed.** Multiplayer messages go through the host, so without it, other players won't see anyone else's FishMon.

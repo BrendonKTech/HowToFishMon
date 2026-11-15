@@ -148,8 +148,30 @@ namespace HowToFishMon
 
         public static StatusState FoePeek(Creature c) => c && _foes.TryGetValue(c, out var s) ? s : null;
 
+        // statuses other players' FishMon gave to foes. Only shown, never ticked here (their game deals that damage).
+        private static readonly Dictionary<Creature, StatusState> _remoteFoes = new Dictionary<Creature, StatusState>();
+
+        public static void ShowRemoteFoe(Creature c, StatusCond cond, float seconds)
+        {
+            if (!c) return;
+            if (cond == StatusCond.None || seconds <= 0f) { _remoteFoes.Remove(c); return; }
+            _remoteFoes[c] = new StatusState { Cond = cond, Until = Time.time + seconds };
+            if (Plugin.AttackEffects.Value) Fx.Burst(BossMon.From(c).Center, ColorOf(cond), 10, 1.4f);
+        }
+
+        // every foe with a status to show over its head: ours first, then other players'
+        public static IEnumerable<KeyValuePair<Creature, StatusState>> Shown()
+        {
+            foreach (var kv in _foes) if (kv.Key && Has(kv.Value)) yield return kv;
+            foreach (var kv in _remoteFoes)
+                if (kv.Key && Has(kv.Value) && !Has(FoePeek(kv.Key))) yield return kv;
+        }
+
         public static void TickFoes()
         {
+            if (_remoteFoes.Count > 0)
+                foreach (var c in _remoteFoes.Keys.ToList())
+                    if (!c || c.IsDead || c.IsDestroying || !Has(_remoteFoes[c])) _remoteFoes.Remove(c);
             if (_foes.Count == 0) return;
             foreach (var kv in _foes.ToList())
             {
@@ -188,10 +210,11 @@ namespace HowToFishMon
                 s.Clear();
                 FishMonController.AddFloat(head, Mon.DisplayName + Statuses.Cured(was), new Color(0.7f, 1f, 0.75f));
             }
-            // just got one: a little burst in its colour
+            // just got one (or lost it): a little burst in its colour, and tell the other players
             if (s.Cond != _lastStatus)
             {
                 _lastStatus = s.Cond;
+                Net.SendStatus(s);
                 if (s.Cond != StatusCond.None && Plugin.AttackEffects.Value) Fx.Burst(transform.position, Statuses.ColorOf(s.Cond), 8, 1f);
             }
             if (s.Cond == StatusCond.None) return false;
@@ -221,9 +244,13 @@ namespace HowToFishMon
             var s = Statuses.Foe(foe.Creature);
             Vector3 top = foe.Center + Vector3.up * 1.5f;
             if (Statuses.TryThaw(s, move))
+            {
                 FishMonController.AddFloat(top, foe.Name + Statuses.Cured(StatusCond.Freeze), Statuses.ColorOf(StatusCond.Freeze));
+                Net.SendFoeStatus(foe.Creature, s);
+            }
             else if (Statuses.TryInflict(s, move, foe.Type1, foe.Type2, foe.IsBoss))
             {
+                Net.SendFoeStatus(foe.Creature, s);
                 FishMonController.AddFloat(top, $"{foe.Name} {Statuses.Inflicted(s.Cond)}", Statuses.ColorOf(s.Cond), 2f);
                 if (Plugin.AttackEffects.Value) Fx.Burst(foe.Center, Statuses.ColorOf(s.Cond), 10, 1.4f);
             }
