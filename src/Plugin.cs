@@ -23,8 +23,35 @@ namespace HowToFishMon
         public static ConfigEntry<KeyCode> AttackKey;
         public static ConfigEntry<KeyCode> StayKey;
         public static ConfigEntry<KeyCode> ModMenuKey;
+        public static ConfigEntry<KeyCode>[] KeyBindings;
         public static ConfigEntry<float> FishHpMultiplier;
         public static ConfigEntry<bool> AttackEffects;
+
+        // readable name for a key: Alpha1 -> 1, Mouse3 -> Mouse 4, LeftShift -> Left Shift
+        public static string KeyName(KeyCode k)
+        {
+            if (k >= KeyCode.Alpha0 && k <= KeyCode.Alpha9) return ((int)(k - KeyCode.Alpha0)).ToString();
+            if (k >= KeyCode.Keypad0 && k <= KeyCode.Keypad9) return "Numpad " + (int)(k - KeyCode.Keypad0);
+            if (k >= KeyCode.Mouse0 && k <= KeyCode.Mouse6) return "Mouse " + (int)(k - KeyCode.Mouse0 + 1);
+            switch (k)
+            {
+                case KeyCode.None: return "(none)";
+                case KeyCode.BackQuote: return "`";
+                case KeyCode.Minus: return "-";
+                case KeyCode.Equals: return "=";
+                case KeyCode.LeftBracket: return "[";
+                case KeyCode.RightBracket: return "]";
+                case KeyCode.Semicolon: return ";";
+                case KeyCode.Quote: return "'";
+                case KeyCode.Comma: return ",";
+                case KeyCode.Period: return ".";
+                case KeyCode.Slash: return "/";
+                case KeyCode.Backslash: return "\\";
+            }
+            return System.Text.RegularExpressions.Regex.Replace(k.ToString(), "(?<=[a-z])(?=[A-Z])", " ");
+        }
+
+        public static string KeyName(ConfigEntry<KeyCode> e) => KeyName(e.Value);
 
         // catching
         public static ConfigEntry<bool> OnlyCatchHooked;
@@ -104,6 +131,7 @@ namespace HowToFishMon
             AttackKey = Config.Bind("Keys", "CommandAttack", KeyCode.G, "Order your FishMon to attack the creature you're looking at. Look at nothing to call it back to you.");
             ModMenuKey = Config.Bind("Keys", "ModMenu", KeyCode.F9, "Open / close the FishMon mod menu (EXP rate, HP, damage, levels, costs...).");
             StayKey = Config.Bind("Keys", "CommandStayFollow", KeyCode.H, "Toggle: tell your FishMon to stay put (it only fights what you order) / follow you again.");
+            KeyBindings = new[] { PartyKey, SummonKey, SwapKey, AttackKey, StayKey, ModMenuKey };
 
             OnlyCatchHooked = Config.Bind("Catching", "OnlyCatchHooked", true, "Only fish you hooked with your own rod count as a catch when you pick them up (bought / found fish don't count). Set false to catch any creature you pick up.");
             MinCatchLevel = Config.Bind("Catching", "MinCatchLevel", 3, "Lowest level a freshly caught FishMon can be.");

@@ -12,6 +12,12 @@ namespace HowToFishMon
         private static float _y, _w, _contentH = 1200f;
         private static bool _confirmReset;
 
+        // key binding currently waiting for a key press (null = not rebinding)
+        private static ConfigEntry<KeyCode> _listening;
+        private static KeyCode[] _allKeys;
+        public static bool Listening => _listening != null;
+        public static void CancelRebind() => _listening = null;
+
         public static void Draw(float vw, float vh, System.Action close)
         {
             float w = 860f, h = Mathf.Min(780f, vh - 40f);
@@ -20,13 +26,23 @@ namespace HowToFishMon
             Styles.Border(win, Styles.Accent, 3f);
             GUI.Label(new Rect(win.x + 20, win.y + 12, 400, 36), "FishMon Mod Menu", Styles.Title);
             if (GUI.Button(new Rect(win.xMax - 100, win.y + 14, 80, 34), "Close", Styles.Button)) { close(); return; }
-            GUI.Label(new Rect(win.x + 20, win.y + 50, w - 40, 22), "Changes apply straight away and are saved when you close this menu. ↺ resets one setting to its default.", Styles.Dim);
+            GUI.Label(new Rect(win.x + 20, win.y + 50, w - 40, 22), _listening != null
+                ? "<color=#ffe27a>Press the new key for this action (Esc or click the button again to cancel).</color>"
+                : "Changes apply straight away and are saved when you close this menu. ↺ resets one setting to its default.", Styles.Dim);
 
             var area = new Rect(win.x + 16, win.y + 80, w - 32, h - 140);
             Styles.Fill(area, Styles.PanelDark);
             _w = area.width - 24;
             _scroll = GUI.BeginScrollView(area, _scroll, new Rect(0, 0, _w, _contentH));
             _y = 6f;
+
+            Section("Controls");
+            K(Plugin.ModMenuKey, "Mod Menu", "Open / close this settings menu.");
+            K(Plugin.PartyKey, "Party menu", "Open / close your party, Box and Fishdex.");
+            K(Plugin.SummonKey, "Send out / recall", "Throw out your lead FishMon, or call it back.");
+            K(Plugin.SwapKey, "Swap FishMon", "Switch to the next healthy FishMon in your party.");
+            K(Plugin.AttackKey, "Attack target", "Order your FishMon to attack what you're looking at.");
+            K(Plugin.StayKey, "Stay / follow", "Tell your FishMon to stay put, or follow you again.");
 
             Section("Progression");
             F(Plugin.ExpMultiplier, "EXP rate", "How fast your FishMon level up (and evolve).", 0.1f, 10f, "x");
@@ -145,6 +161,53 @@ namespace HowToFishMon
             if (iv != e.Value) e.Value = iv;
             GUI.Label(new Rect(row.xMax - 170, row.y + 2, 120, 24), Fmt(e.Value, unit), Styles.SmallRight);
             if (ResetButton(row, e.Value == (int)e.DefaultValue)) e.Value = (int)e.DefaultValue;
+        }
+
+        // key binding row: click the button, then press the new key
+        private static void K(ConfigEntry<KeyCode> e, string label, string desc)
+        {
+            var row = RowStart(label, desc);
+            bool listening = _listening == e;
+            string text = listening ? "<color=#ffe27a>Press a key...</color>" : $"<b>{Plugin.KeyName(e)}</b>";
+            if (GUI.Button(new Rect(row.xMax - 210, row.y + 4, 160, 26), text, Styles.Button))
+                _listening = listening ? null : e;
+            string clash = listening ? null : FishMonController.GameActionFor(e.Value);
+            if (clash != null)
+                GUI.Label(new Rect(290, row.y + 4, row.width - 510, 24), $"<color=#ffcc66>also the game's '{clash}' key</color>", Styles.SmallRight);
+            if (ResetButton(row, e.Value == (KeyCode)e.DefaultValue)) { _listening = null; SetKey(e, (KeyCode)e.DefaultValue); }
+        }
+
+        // called from Update while a binding is waiting for a key
+        public static void TickRebind()
+        {
+            if (_listening == null) return;
+            if (!Open) { _listening = null; return; }
+            if (Input.GetKeyDown(KeyCode.Escape)) { _listening = null; return; }
+            if (_allKeys == null) _allKeys = (KeyCode[])System.Enum.GetValues(typeof(KeyCode));
+            foreach (var k in _allKeys)
+            {
+                // left/right click are for the menu itself; gamepads aren't supported
+                if (k == KeyCode.None || k == KeyCode.Escape || k == KeyCode.Mouse0 || k == KeyCode.Mouse1 || k >= KeyCode.JoystickButton0) continue;
+                if (!Input.GetKeyDown(k)) continue;
+                var e = _listening;
+                _listening = null;
+                SetKey(e, k);
+                return;
+            }
+        }
+
+        // set a binding; if another FishMon action already uses that key, the two swap
+        private static void SetKey(ConfigEntry<KeyCode> e, KeyCode k)
+        {
+            var old = e.Value;
+            if (old == k) return;
+            foreach (var other in Plugin.KeyBindings)
+                if (other != e && other.Value == k)
+                {
+                    other.Value = old;
+                    FishMonController.ShowToast($"{Plugin.KeyName(k)} was already used for {other.Definition.Key}, so that's now {Plugin.KeyName(old)}.", new Color(1f, 0.85f, 0.5f), 4f);
+                }
+            e.Value = k;
         }
 
         private static void B(ConfigEntry<bool> e, string label, string desc)

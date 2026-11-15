@@ -60,7 +60,7 @@ namespace HowToFishMon
             }
             if (!toParty) ShowToast($"Your party is full, so {mon.SpeciesName} was sent to the Box.", null, 5f);
             else if (FishMonStorage.Party.Count == 1)
-                ShowToast($"Press {Plugin.SummonKey.Value} to send {mon.SpeciesName} out!", new Color(0.7f, 0.9f, 1f), 6f);
+                ShowToast($"Press {Plugin.KeyName(Plugin.SummonKey)} to send {mon.SpeciesName} out!", new Color(0.7f, 0.9f, 1f), 6f);
 
             // the lead FishMon learns a little from every catch
             var lead = Active ? Active.Mon : FishMonStorage.Party.FirstOrDefault();
@@ -108,7 +108,7 @@ namespace HowToFishMon
             if (Active) { ShowToast($"A boss appeared! {Active.Mon.DisplayName} is ready to fight!", new Color(1f, 0.6f, 0.4f), 6f); return; }
             var lead = FishMonStorage.Lead;
             if (lead != null)
-                ShowToast($"A boss appeared! Press {Plugin.SummonKey.Value} to send out {lead.DisplayName}!", new Color(1f, 0.6f, 0.4f), 7f);
+                ShowToast($"A boss appeared! Press {Plugin.KeyName(Plugin.SummonKey)} to send out {lead.DisplayName}!", new Color(1f, 0.6f, 0.4f), 7f);
             else if (FishMonStorage.Party.Count == 0)
                 ShowToast("A boss appeared! Hook fish with your rod and pick them up to build a FishMon team.", new Color(1f, 0.6f, 0.4f), 7f);
         }
@@ -183,7 +183,7 @@ namespace HowToFishMon
 
         private void CommandAttack(Player player)
         {
-            if (!Active) { ShowToast($"Send out a FishMon first ({Plugin.SummonKey.Value})."); return; }
+            if (!Active) { ShowToast($"Send out a FishMon first ({Plugin.KeyName(Plugin.SummonKey)})."); return; }
             var target = CreatureUnderCrosshair(player);
             if (target)
             {
@@ -200,7 +200,7 @@ namespace HowToFishMon
 
         private void CommandStayToggle()
         {
-            if (!Active) { ShowToast($"Send out a FishMon first ({Plugin.SummonKey.Value})."); return; }
+            if (!Active) { ShowToast($"Send out a FishMon first ({Plugin.KeyName(Plugin.SummonKey)})."); return; }
             if (Active.Staying)
             {
                 Active.OrderFollow();
@@ -209,7 +209,7 @@ namespace HowToFishMon
             else
             {
                 Active.OrderStay();
-                ShowToast($"{Active.Mon.DisplayName}, stay! (it'll only fight what you point at with {Plugin.AttackKey.Value})", new Color(0.6f, 0.85f, 1f), 3.5f);
+                ShowToast($"{Active.Mon.DisplayName}, stay! (it'll only fight what you point at with {Plugin.KeyName(Plugin.AttackKey)})", new Color(0.6f, 0.85f, 1f), 3.5f);
             }
         }
 
@@ -248,32 +248,54 @@ namespace HowToFishMon
 
         private bool _checkedKeys;
 
-        private void CheckKeyConflicts()
+        // game keyboard key name (lower case, e.g. "g", "f6", "leftshift") -> game action using it
+        private static Dictionary<string, string> _gameKeys;
+
+        private static Dictionary<string, string> GameKeys()
         {
-            _checkedKeys = true;
+            if (_gameKeys != null) return _gameKeys;
+            var map = new Dictionary<string, string>();
             try
             {
                 var input = GameInfo.Input;
-                if (!input || input.actions == null) return;
-                var ours = new[] { Plugin.PartyKey, Plugin.SummonKey, Plugin.SwapKey, Plugin.AttackKey, Plugin.StayKey };
-                foreach (var action in input.actions)
-                    foreach (var b in action.bindings)
-                    {
-                        string path = b.effectivePath;
-                        if (string.IsNullOrEmpty(path) || !path.StartsWith("<Keyboard>/")) continue;
-                        string key = path.Substring("<Keyboard>/".Length);
-                        foreach (var k in ours)
-                            if (string.Equals(key, k.Value.ToString(), StringComparison.OrdinalIgnoreCase))
-                            {
-                                string msg = $"FishMon key {k.Value} ({k.Definition.Key}) is also the game's '{action.name}' key. Change it in the FishMon config if that's a problem.";
-                                Plugin.Log.LogWarning(msg);
-                                ShowToast(msg, new Color(1f, 0.8f, 0.4f), 8f);
-                            }
-                    }
+                if (input && input.actions != null)
+                    foreach (var action in input.actions)
+                        foreach (var b in action.bindings)
+                        {
+                            string path = b.effectivePath;
+                            if (string.IsNullOrEmpty(path) || !path.StartsWith("<Keyboard>/")) continue;
+                            string key = path.Substring("<Keyboard>/".Length).ToLowerInvariant();
+                            if (!map.ContainsKey(key)) map[key] = action.name;
+                        }
+                _gameKeys = map; // only cache once the game's input actually exists
             }
             catch (Exception e)
             {
-                Plugin.Log.LogInfo("Couldn't check key bindings: " + e.Message);
+                Plugin.Log.LogInfo("Couldn't read the game's key bindings: " + e.Message);
+            }
+            return map;
+        }
+
+        // forget the cached game bindings (the player may have rebound them in the game's own settings)
+        public static void RefreshGameKeys() => _gameKeys = null;
+
+        // the game action that also uses this key, or null
+        public static string GameActionFor(KeyCode k)
+        {
+            if (k == KeyCode.None) return null;
+            return GameKeys().TryGetValue(k.ToString().ToLowerInvariant(), out var action) ? action : null;
+        }
+
+        private void CheckKeyConflicts()
+        {
+            _checkedKeys = true;
+            foreach (var k in Plugin.KeyBindings)
+            {
+                string action = GameActionFor(k.Value);
+                if (action == null) continue;
+                string msg = $"FishMon key {Plugin.KeyName(k)} ({k.Definition.Key}) is also the game's '{action}' key. You can change it in the FishMon Mod Menu ({Plugin.KeyName(Plugin.ModMenuKey)}) → Controls.";
+                Plugin.Log.LogWarning(msg);
+                ShowToast(msg, new Color(1f, 0.8f, 0.4f), 8f);
             }
         }
 
@@ -294,7 +316,7 @@ namespace HowToFishMon
             {
                 ShowToast(FishMonStorage.Party.Count == 0
                     ? "You don't have any FishMon! Hook a fish with your rod, then pick it up (E) to catch it."
-                    : $"All your FishMon have fainted! Revive them in the party menu ({Plugin.PartyKey.Value}).",
+                    : $"All your FishMon have fainted! Revive them in the party menu ({Plugin.KeyName(Plugin.PartyKey)}).",
                     new Color(1f, 0.6f, 0.6f));
                 return;
             }
@@ -318,14 +340,14 @@ namespace HowToFishMon
         {
             var mon = c.Mon;
             mon.CurrentHp = 0;
-            ShowToast($"{mon.DisplayName} fainted! It needs a Revive ({Plugin.PartyKey.Value} menu) before it can fight again.", new Color(1f, 0.5f, 0.5f), 5f);
+            ShowToast($"{mon.DisplayName} fainted! It needs a Revive ({Plugin.KeyName(Plugin.PartyKey)} menu) before it can fight again.", new Color(1f, 0.5f, 0.5f), 5f);
             if (Active == c) Active = null;
             c.Despawn();
             FishMonStorage.Save();
             if (Plugin.AutoSendNext.Value && FishMonStorage.Lead != null && Instance)
                 Instance._autoSendAt = Time.time + 1.5f;
             else if (FishMonStorage.Lead == null)
-                ShowToast($"You have no FishMon left that can fight! Revive them in the party menu ({Plugin.PartyKey.Value}).", new Color(1f, 0.5f, 0.5f), 6f);
+                ShowToast($"You have no FishMon left that can fight! Revive them in the party menu ({Plugin.KeyName(Plugin.PartyKey)}).", new Color(1f, 0.5f, 0.5f), 6f);
         }
 
         // UPDATE
@@ -337,7 +359,8 @@ namespace HowToFishMon
 
             UpdateWorldSave(inGame);
 
-            if (inGame && WorldPrompt == null && !PauseManager.IsPaused && !ChatManager.IsTyping)
+            if (ModMenu.Listening) ModMenu.TickRebind(); // waiting for a new key: don't fire any hotkeys
+            else if (inGame && WorldPrompt == null && !PauseManager.IsPaused && !ChatManager.IsTyping)
             {
                 if (Input.GetKeyDown(Plugin.ModMenuKey.Value)) SetModMenu(!ModMenu.Open);
                 else if (Input.GetKeyDown(Plugin.PartyKey.Value)) { if (ModMenu.Open) SetModMenu(false); SetPartyOpen(!PartyOpen); }
@@ -472,8 +495,10 @@ namespace HowToFishMon
             if (ModMenu.Open == open) return;
             bool was = UIOpen;
             ModMenu.Open = open;
-            if (!open)
+            if (open) RefreshGameKeys();
+            else
             {
+                ModMenu.CancelRebind();
                 try { Plugin.Instance.Config.Save(); } catch (Exception e) { Plugin.Log.LogError("Couldn't save config: " + e.Message); }
                 FishMonStorage.Save();
             }
@@ -692,14 +717,14 @@ namespace HowToFishMon
                 string evo = next != null ? $"   <color=#9aa6bd>evolves at Lv. {next.Level}</color>" : "   <color=#ffd84a>fully evolved</color>";
                 GUI.Label(new Rect(r.x + 12, r.y + 66, r.width - 24, 24), status + evo, Styles.Small);
                 GUI.Label(new Rect(r.x + 12, r.y + 90, r.width - 24, 22),
-                    $"<color=#9aa6bd>[{Plugin.AttackKey.Value}] attack target  [{Plugin.StayKey.Value}] stay/follow  [{Plugin.SummonKey.Value}] recall  [{Plugin.SwapKey.Value}] swap</color>", Styles.Small);
+                    $"<color=#9aa6bd>[{Plugin.KeyName(Plugin.AttackKey)}] attack target  [{Plugin.KeyName(Plugin.StayKey)}] stay/follow  [{Plugin.KeyName(Plugin.SummonKey)}] recall  [{Plugin.KeyName(Plugin.SwapKey)}] swap</color>", Styles.Small);
             }
             else if (bossUp && FishMonStorage.Lead != null)
             {
                 var lead = FishMonStorage.Lead;
                 var r = new Rect(20f, VH - 70f, 420f, 44f);
                 Styles.Fill(r, new Color(0f, 0f, 0f, 0.6f));
-                GUI.Label(r, $"  [{Plugin.SummonKey.Value}]  Send out {lead.DisplayName} (Lv. {lead.Level})!", Styles.Body);
+                GUI.Label(r, $"  [{Plugin.KeyName(Plugin.SummonKey)}]  Send out {lead.DisplayName} (Lv. {lead.Level})!", Styles.Body);
             }
         }
 

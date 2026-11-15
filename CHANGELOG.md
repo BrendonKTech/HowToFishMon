@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Rebind every FishMon key from the Mod Menu (new **Controls** section), with swapping and a warning when a key is also one of the game's keys
+- Key names in messages are easier to read (e.g. "1" instead of "Alpha1")
+
 ## 1.0.0
 First release!
 - Catch fish with your rod and turn them into FishMon with stats, IVs, natures, types and moves

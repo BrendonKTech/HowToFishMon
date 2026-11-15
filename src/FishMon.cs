@@ -136,7 +136,7 @@ namespace HowToFishMon
                     if (oldLearnable.Contains(m.Name)) continue;
                     if (KnownMoves == null) break;
                     if (KnownMoves.Count < 4) { KnownMoves.Add(m.Name); msgs.Add($"{DisplayName} learned {m.Name}!"); }
-                    else msgs.Add($"{DisplayName} can learn {m.Name}! Teach it in the party menu ({Plugin.PartyKey.Value}) → Moves.");
+                    else msgs.Add($"{DisplayName} can learn {m.Name}! Teach it in the party menu ({Plugin.KeyName(Plugin.PartyKey)}) → Moves.");
                 }
             }
             return msgs;

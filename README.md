@@ -23,6 +23,8 @@ In multiplayer, the host needs the mod for everyone to see each other's FishMon.
 
 ## How To Use FishMon
 
+All the keys below are the defaults. You can change any of them in the Mod Menu (F9) → **Controls**.
+
 | Feature | How it works |
 |---|---|
 | **Catching FishMon** | The catching mechanic is pretty simple. You play the game normally, catch a fish using your own fishing rod, and then beat it up until it's no longer flopping around. Once it's dead, you can pick it up with **E** to add it to your collection! You'll get a little "Gotcha!" message showing its level, IVs, and nature. Fish you buy or find won't count unless you change `OnlyCatchHooked = false` in the config. |
@@ -177,6 +179,7 @@ The Mod Menu can be opened by pressing **F9**, or by clicking the Settings butto
 
 There's quite a bit you can change here, including:
 
+- **Controls** - rebind every FishMon key (Mod Menu, Party menu, Send Out / Recall, Swap, Attack, Stay / Follow). Click a key, then press the new one. Esc cancels. If the key is already used by another FishMon action, the two swap. You'll also see a warning if a key is also one of the game's own keys.
 - EXP rate.
 - FishMon HP.
 - Damage dealt and received.
