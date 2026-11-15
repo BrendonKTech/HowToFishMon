@@ -16,10 +16,14 @@ namespace HowToFishMon
         public int LearnLevel;
         public float DrainPercent; // heals attacker by % of damage dealt
         public bool Spread;        // hits every foe nearby, like doubles in pokemon (75% dmg each if it hits more than one)
+        public StatusCond Status;  // status it can inflict on hit (see Status.cs)
+        public int StatusChance;   // 0-100
 
-        public Move(string name, MonType type, MoveCategory cat, int power, int acc, int learn, int priority = 0, float drain = 0f, bool spread = false)
+        public Move(string name, MonType type, MoveCategory cat, int power, int acc, int learn, int priority = 0, float drain = 0f, bool spread = false,
+                    StatusCond status = StatusCond.None, int chance = 0)
         {
             Name = name; Type = type; Category = cat; Power = power; Accuracy = acc; LearnLevel = learn; Priority = priority; DrainPercent = drain; Spread = spread;
+            Status = status; StatusChance = chance;
         }
     }
 
@@ -27,6 +31,8 @@ namespace HowToFishMon
     {
         private const MoveCategory P = MoveCategory.Physical;
         private const MoveCategory S = MoveCategory.Special;
+        private const StatusCond BRN = StatusCond.Burn, PSN = StatusCond.Poison, PAR = StatusCond.Paralysis,
+                                 SLP = StatusCond.Sleep, FRZ = StatusCond.Freeze;
 
         public static readonly List<Move> All = new List<Move>
         {
@@ -43,36 +49,36 @@ namespace HowToFishMon
             new Move("Surf",          MonType.Water,    S, 90, 100, 38, spread: true),
             new Move("Hydro Pump",    MonType.Water,    S, 110, 80, 52),
 
-            new Move("Ember",         MonType.Fire,     S, 40, 100, 1),
-            new Move("Flame Wheel",   MonType.Fire,     P, 60, 100, 18),
-            new Move("Lava Plume",    MonType.Fire,     S, 80, 100, 30, spread: true),
-            new Move("Flamethrower",  MonType.Fire,     S, 90, 100, 42),
+            new Move("Ember",         MonType.Fire,     S, 40, 100, 1, status: BRN, chance: 10),
+            new Move("Flame Wheel",   MonType.Fire,     P, 60, 100, 18, status: BRN, chance: 10),
+            new Move("Lava Plume",    MonType.Fire,     S, 80, 100, 30, spread: true, status: BRN, chance: 30),
+            new Move("Flamethrower",  MonType.Fire,     S, 90, 100, 42, status: BRN, chance: 10),
 
-            new Move("Thunder Shock", MonType.Electric, S, 40, 100, 1),
-            new Move("Spark",         MonType.Electric, P, 65, 100, 16),
-            new Move("Thunderbolt",   MonType.Electric, S, 90, 100, 36),
+            new Move("Thunder Shock", MonType.Electric, S, 40, 100, 1, status: PAR, chance: 10),
+            new Move("Spark",         MonType.Electric, P, 65, 100, 16, status: PAR, chance: 30),
+            new Move("Thunderbolt",   MonType.Electric, S, 90, 100, 36, status: PAR, chance: 10),
             new Move("Wild Charge",   MonType.Electric, P, 90, 100, 48),
-            new Move("Discharge",     MonType.Electric, S, 80, 100, 30, spread: true),
+            new Move("Discharge",     MonType.Electric, S, 80, 100, 30, spread: true, status: PAR, chance: 30),
 
             new Move("Absorb",        MonType.Grass,    S, 40, 100, 1, drain: 0.5f),
             new Move("Razor Leaf",    MonType.Grass,    P, 55, 95, 15, spread: true),
             new Move("Giga Drain",    MonType.Grass,    S, 75, 100, 32, drain: 0.5f),
             new Move("Energy Ball",   MonType.Grass,    S, 90, 100, 44),
 
-            new Move("Powder Snow",   MonType.Ice,      S, 40, 100, 1, spread: true),
-            new Move("Ice Fang",      MonType.Ice,      P, 65, 95, 18),
-            new Move("Ice Beam",      MonType.Ice,      S, 90, 100, 40),
+            new Move("Powder Snow",   MonType.Ice,      S, 40, 100, 1, spread: true, status: FRZ, chance: 10),
+            new Move("Ice Fang",      MonType.Ice,      P, 65, 95, 18, status: FRZ, chance: 10),
+            new Move("Ice Beam",      MonType.Ice,      S, 90, 100, 40, status: FRZ, chance: 10),
             new Move("Icy Wind",      MonType.Ice,      S, 55, 95, 12, spread: true),
 
             new Move("Rock Smash",    MonType.Fighting, P, 40, 100, 1),
             new Move("Brick Break",   MonType.Fighting, P, 75, 100, 24),
             new Move("Close Combat",  MonType.Fighting, P, 120, 100, 50),
 
-            new Move("Poison Sting",  MonType.Poison,   P, 30, 100, 1),
-            new Move("Sludge",        MonType.Poison,   S, 65, 100, 18),
-            new Move("Poison Jab",    MonType.Poison,   P, 80, 100, 30),
-            new Move("Sludge Bomb",   MonType.Poison,   S, 90, 100, 42),
-            new Move("Sludge Wave",   MonType.Poison,   S, 95, 100, 48, spread: true),
+            new Move("Poison Sting",  MonType.Poison,   P, 30, 100, 1, status: PSN, chance: 30),
+            new Move("Sludge",        MonType.Poison,   S, 65, 100, 18, status: PSN, chance: 30),
+            new Move("Poison Jab",    MonType.Poison,   P, 80, 100, 30, status: PSN, chance: 30),
+            new Move("Sludge Bomb",   MonType.Poison,   S, 90, 100, 42, status: PSN, chance: 30),
+            new Move("Sludge Wave",   MonType.Poison,   S, 95, 100, 48, spread: true, status: PSN, chance: 10),
 
             new Move("Mud Slap",      MonType.Ground,   S, 20, 100, 1),
             new Move("Bulldoze",      MonType.Ground,   P, 60, 100, 20, spread: true),
@@ -84,9 +90,9 @@ namespace HowToFishMon
             new Move("Brave Bird",    MonType.Flying,   P, 120, 100, 50),
             new Move("Air Cutter",    MonType.Flying,   S, 60, 95, 22, spread: true),
 
-            new Move("Confusion",     MonType.Psychic,  S, 50, 100, 1),
-            new Move("Psybeam",       MonType.Psychic,  S, 65, 100, 20),
-            new Move("Psychic",       MonType.Psychic,  S, 90, 100, 40),
+            new Move("Confusion",     MonType.Psychic,  S, 50, 100, 1, status: SLP, chance: 10),
+            new Move("Psybeam",       MonType.Psychic,  S, 65, 100, 20, status: SLP, chance: 20),
+            new Move("Psychic",       MonType.Psychic,  S, 90, 100, 40, status: SLP, chance: 10),
 
             new Move("Bug Bite",      MonType.Bug,      P, 60, 100, 1),
             new Move("Signal Beam",   MonType.Bug,      S, 75, 100, 24),
@@ -102,7 +108,7 @@ namespace HowToFishMon
             new Move("Shadow Ball",   MonType.Ghost,    S, 80, 100, 38),
 
             new Move("Twister",       MonType.Dragon,   S, 40, 100, 1, spread: true),
-            new Move("Dragon Breath", MonType.Dragon,   S, 60, 100, 18),
+            new Move("Dragon Breath", MonType.Dragon,   S, 60, 100, 18, status: PAR, chance: 30),
             new Move("Dragon Pulse",  MonType.Dragon,   S, 85, 100, 38),
             new Move("Outrage",       MonType.Dragon,   P, 120, 100, 54),
 
@@ -139,8 +145,22 @@ namespace HowToFishMon
             if (m.Spread) t.Add("hits all nearby foes");
             if (m.Priority > 0) t.Add("fast");
             if (m.DrainPercent > 0f) t.Add($"heals {m.DrainPercent:P0} of damage");
+            if (m.Status != StatusCond.None) t.Add($"{m.StatusChance}% to {StatusVerb(m.Status)}");
             if (m.Accuracy < 100) t.Add("can miss");
             return string.Join(", ", t);
+        }
+
+        private static string StatusVerb(StatusCond c)
+        {
+            switch (c)
+            {
+                case StatusCond.Burn: return "burn";
+                case StatusCond.Poison: return "poison";
+                case StatusCond.Paralysis: return "paralyze";
+                case StatusCond.Sleep: return "put to sleep";
+                case StatusCond.Freeze: return "freeze";
+                default: return "";
+            }
         }
 
         // the 4 moves a creature of these types knows at this level (strongest moves, at least one of each own type)

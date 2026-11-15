@@ -118,6 +118,20 @@ Here's how the combat works:
 
 Your lead FishMon also gets a little EXP boost every time you catch a fish!
 
+### Status Conditions
+
+Some moves can inflict a status on whatever they hit. It works both ways: your FishMon can inflict them on foes, and bosses can inflict them on your FishMon. Statuses wear off after a few seconds, and a FishMon or foe can only have one at a time.
+
+| Status | Comes from | What it does |
+|---|---|---|
+| **Burn** (BRN) | Fire moves | Loses 1/16 of its HP every 3 seconds for 15 seconds, and its physical moves do half damage. |
+| **Poison** (PSN) | Poison moves | Loses 1/12 of its HP every 3 seconds for 15 seconds. |
+| **Paralysis** (PAR) | Electric moves, Dragon Breath | 40% slower for 20 seconds, and 1 in 4 attacks fail. |
+| **Sleep** (SLP) | Psychic moves | Can't move or attack for 3-6 seconds. |
+| **Freeze** (FRZ) | Ice moves | Can't move or attack for 2-5 seconds. A Fire move thaws it out straight away. |
+
+Fire types can't be burned, Poison and Steel types can't be poisoned, Electric types can't be paralyzed, and Ice types can't be frozen. Bosses only take a quarter of the burn and poison damage, and shake off sleep and freeze twice as fast. You'll see the status next to your FishMon's name and above whatever it's fighting. Heal All and Revive cure it. Each move's status chance is listed in the Moves tab.
+
 ### Healing and Reviving
 
 Your FishMon can take quite a beating, so you'll need to keep an eye on their HP.

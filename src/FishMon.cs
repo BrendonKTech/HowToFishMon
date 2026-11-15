@@ -42,6 +42,8 @@ namespace HowToFishMon
         public bool Has(Ability a) => Ability == a && AbilityOn;
 
         [JsonIgnore] public float RegenCarry;
+        // burn, poison... Not saved: statuses only last a few seconds
+        [JsonIgnore] public StatusState Status = new StatusState();
         // leftover fractions of bonus EXP (Scholar, Mentor), so small hits still add up
         [JsonIgnore] public float ExpCarry;
 
@@ -104,7 +106,11 @@ namespace HowToFishMon
             if (KnownMoves.Count == 0) KnownMoves = null;
         }
 
-        public void Revive(float hpFraction) => CurrentHp = Mathf.Clamp(Mathf.RoundToInt(MaxHp * hpFraction), 1, MaxHp);
+        public void Revive(float hpFraction)
+        {
+            CurrentHp = Mathf.Clamp(Mathf.RoundToInt(MaxHp * hpFraction), 1, MaxHp);
+            Status.Clear();
+        }
 
         public static int ExpForLevel(int level) => level <= 1 ? 0 : level * level * level;
         [JsonIgnore] public int ExpToNext => ExpForLevel(Level + 1) - Exp;
@@ -192,7 +198,11 @@ namespace HowToFishMon
 
         [JsonIgnore] public int MaxStage => Evolutions.ChainFor(this).Length;
 
-        public void HealFull() => CurrentHp = MaxHp;
+        public void HealFull()
+        {
+            CurrentHp = MaxHp;
+            Status.Clear();
+        }
 
         public string IVJudge()
         {

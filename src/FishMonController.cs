@@ -371,6 +371,7 @@ namespace HowToFishMon
         {
             var mon = c.Mon;
             mon.CurrentHp = 0;
+            mon.Status.Clear();
             ShowToast($"{mon.DisplayName} fainted! It needs a Revive ({Plugin.KeyName(Plugin.PartyKey)} menu) before it can fight again.", new Color(1f, 0.5f, 0.5f), 5f);
             if (Active == c) Active = null;
             c.Despawn();
@@ -421,6 +422,7 @@ namespace HowToFishMon
 
             Regenerate();
             if (inGame) ScanNearbyForDex(player);
+            try { Statuses.TickFoes(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon status tick: " + e.Message); }
             try { Net.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon sync: " + e.Message); }
 
             if (FishMonStorage.Dirty)
@@ -654,7 +656,7 @@ namespace HowToFishMon
                     var r = new Rect(g.x - 80, g.y - 34, 160, 34);
                     Styles.Fill(r, new Color(0f, 0f, 0f, 0.55f));
                     string star = m.Shiny ? "<color=#ffd84a>★</color>" : "";
-                    GUI.Label(new Rect(r.x + 6, r.y + 1, r.width - 12, 18), $"{star}{m.DisplayName}  <size=12>Lv.{m.Level}</size>", Styles.Plate);
+                    GUI.Label(new Rect(r.x + 6, r.y + 1, r.width - 12, 18), $"{star}{m.DisplayName}  <size=12>Lv.{m.Level}{Statuses.RichTag(m.Status)}</size>", Styles.Plate);
                     Styles.HpBar(new Rect(r.x + 6, r.y + 22, r.width - 12, 7), m.CurrentHp / (float)m.MaxHp);
                 }
 
@@ -671,6 +673,19 @@ namespace HowToFishMon
                         GUI.Label(new Rect(tg.x - 60, tg.y - 40 + bob, 120, 40), "▼\n<size=12>TARGET</size>", Styles.Plate);
                         GUI.color = old;
                     }
+                }
+
+                // status tag over whatever it's fighting (BRN, PAR...)
+                var foe = Active.Target;
+                var fs = foe != null ? Statuses.FoePeek(foe.Creature) : null;
+                if (Statuses.Has(fs) && !foe.Dead && ToGui(cam, foe.Center + Vector3.up * 2f, out var fg))
+                {
+                    var fr = new Rect(fg.x - 28, fg.y - 12, 56, 24);
+                    Styles.Fill(fr, new Color(0f, 0f, 0f, 0.6f));
+                    var old = GUI.color;
+                    GUI.color = Statuses.ColorOf(fs.Cond);
+                    GUI.Label(fr, Statuses.Tag(fs.Cond), Styles.Plate);
+                    GUI.color = old;
                 }
             }
 
@@ -738,7 +753,7 @@ namespace HowToFishMon
                 GUI.Label(new Rect(r.xMax - 94, r.y + 32, 82, 22), $"{m.CurrentHp}/{m.MaxHp}", Styles.SmallRight);
                 Styles.Bar(new Rect(r.x + 12, r.y + 56, r.width - 110, 5), m.ExpProgress, new Color(0.35f, 0.7f, 1f));
                 string stageTag = m.Stage > 0 ? $"  <size=12><color=#ffd84a>{new string('◆', m.Stage)}</color></size>" : "";
-                GUI.Label(new Rect(r.x + 12 + Styles.BodyBold.CalcSize(new GUIContent(star + m.DisplayName)).x, r.y + 6, 60, 26), stageTag, Styles.Small);
+                GUI.Label(new Rect(r.x + 12 + Styles.BodyBold.CalcSize(new GUIContent(star + m.DisplayName)).x, r.y + 6, 120, 26), stageTag + Statuses.RichTag(m.Status), Styles.Small);
 
                 string status;
                 if (Active.Engaged && Active.Target != null)

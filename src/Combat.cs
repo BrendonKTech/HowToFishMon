@@ -102,6 +102,7 @@ namespace HowToFishMon
             // Berserker: the more HP it has lost, the harder it hits
             if (f.Has(Ability.Berserker))
                 mult *= 1f + Abilities.BerserkerMax * (1f - Mathf.Clamp01(f.CurrentHp / (float)Mathf.Max(1, f.MaxHp)));
+            if (phys && Statuses.Is(f.Status, StatusCond.Burn)) mult *= Statuses.BurnAttack;
             return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
                 m, f.Type1, f.Type2, b.Type1, b.Type2, mult);
         }
@@ -110,6 +111,7 @@ namespace HowToFishMon
         {
             bool phys = m.Category == MoveCategory.Physical;
             float mult = Plugin.BossDamageToFishMultiplier.Value * (f.Has(Ability.ThickScales) ? Abilities.ThickScalesTaken : 1f);
+            if (phys && Statuses.Is(Statuses.FoePeek(b.Creature), StatusCond.Burn)) mult *= Statuses.BurnAttack;
             return Calc(b.Level, b.Stats[phys ? Stat.Atk : Stat.SpA], f.CalcStat(phys ? Stat.Def : Stat.SpD),
                 m, b.Type1, b.Type2, f.Type1, f.Type2, mult);
         }

@@ -344,14 +344,18 @@ namespace HowToFishMon
             UpdateTarget(player);
             TickMedic(player, dt);
             TickTreasure(player, dt);
+            if (TickStatus()) return; // fainted from burn / poison
 
-            switch (_state)
-            {
-                case State.Follow: DoFollow(player, dt); break;
-                case State.Engage: DoEngage(dt); break;
-                case State.Lunge: DoArc(dt, true); break;
-                case State.Recover: DoArc(dt, false); break;
-            }
+            // asleep or frozen: stays put (but finishes a leap it already started)
+            bool stuck = Statuses.CantAct(Mon.Status) && (_state == State.Follow || _state == State.Engage);
+            if (!stuck)
+                switch (_state)
+                {
+                    case State.Follow: DoFollow(player, dt); break;
+                    case State.Engage: DoEngage(dt); break;
+                    case State.Lunge: DoArc(dt, true); break;
+                    case State.Recover: DoArc(dt, false); break;
+                }
 
             if (_state == State.Engage || _state == State.Lunge || _state == State.Recover)
                 BossCounterAttack(dt);
@@ -452,7 +456,8 @@ namespace HowToFishMon
             if (_state == State.Follow) _state = State.Engage;
         }
 
-        private float SpeedMult => Mon.Has(Ability.Speedster) ? Abilities.SpeedsterSpeed : 1f;
+        private float SpeedMult => (Mon.Has(Ability.Speedster) ? Abilities.SpeedsterSpeed : 1f) *
+                                   (Statuses.Is(Mon.Status, StatusCond.Paralysis) ? Statuses.ParaSpeed : 1f);
         private float MoveSpeed => (4f + Mon.CalcStat(Stat.Spe) / 25f) * SpeedMult;
 
         private void DoFollow(Player player, float dt)
@@ -562,7 +567,15 @@ namespace HowToFishMon
 
             _attackCooldown -= dt;
             float toBoss = Vector3.Distance(transform.position, center) - _bossRadius;
-            if (_attackCooldown <= 0f && toBoss < 9f) StartLunge();
+            if (_attackCooldown <= 0f && toBoss < 9f)
+            {
+                if (Statuses.Is(Mon.Status, StatusCond.Paralysis) && Combat.Random01() < Statuses.ParaSkip)
+                {
+                    _attackCooldown = 1.5f;
+                    FishMonController.AddFloat(transform.position + Vector3.up * (HalfHeight + 0.6f), $"{Mon.DisplayName} is paralyzed! It can't move!", Statuses.ColorOf(StatusCond.Paralysis));
+                }
+                else StartLunge();
+            }
         }
 
         private void MoveFlat(Vector3 flat, float dist, float speed, float stopDist, float dt)
@@ -706,6 +719,8 @@ namespace HowToFishMon
             else { try { AudioManager.PlayClipAt("FishPunchHit", at, true, AudioDistance.Medium, 0.6f); } catch { } }
             Net.SendAttack(1, _pendingMove, at, dir, h.Eff, h.Crit, _inWater);
 
+            InflictOnFoe(_boss, _pendingMove);
+
             string extra = h.Eff >= 2f ? "Super effective!" : h.Eff < 1f ? "Not very effective..." : "";
             if (h.Crit) extra = "Critical hit! " + extra;
             if (extra.Length > 0) FishMonController.AddFloat(at + Vector3.up * 0.5f, extra, h.Eff >= 2f ? new Color(0.7f, 1f, 0.5f) : new Color(1f, 0.85f, 0.5f));
@@ -765,6 +780,7 @@ namespace HowToFishMon
                 Net.SendAttack(3, move, pos, dir, h.Eff, h.Crit, false);
                 Fishdex.MarkSeen(c);
                 hits++;
+                if (!kills) InflictOnFoe(foe, move);
                 if (Mon.Has(Ability.Leech)) Mon.CurrentHp = Mathf.Min(Mon.MaxHp, Mon.CurrentHp + Mathf.Max(1, Mathf.RoundToInt(h.Damage * Abilities.LeechHeal)));
 
                 _expCarry += foe.FullExp * 0.5f * real / (float)foe.RealMaxHp;
@@ -794,6 +810,20 @@ namespace HowToFishMon
             if (_bossAttackTimer > 0f) return;
             _bossAttackTimer = 2.5f + Combat.Random01() * 2.5f;
 
+            // the foe's own status can stop it hitting back
+            var foeStatus = Statuses.FoePeek(c);
+            Vector3 foeTop = _boss.Center + Vector3.up * 1.5f;
+            if (Statuses.CantAct(foeStatus))
+            {
+                FishMonController.AddFloat(foeTop, Statuses.Is(foeStatus, StatusCond.Sleep) ? $"{_boss.Name} is fast asleep. Zzz" : $"{_boss.Name} is frozen solid!", Statuses.ColorOf(foeStatus.Cond));
+                return;
+            }
+            if (Statuses.Is(foeStatus, StatusCond.Paralysis) && Combat.Random01() < Statuses.ParaSkip)
+            {
+                FishMonController.AddFloat(foeTop, $"{_boss.Name} is paralyzed! It can't move!", Statuses.ColorOf(StatusCond.Paralysis));
+                return;
+            }
+
             var move = Combat.PickMove(_boss.Moves, _boss.Type1, _boss.Type2, Mon.Type1, Mon.Type2);
             var h = Combat.BossHitsFish(_boss, Mon, move);
             Vector3 head = transform.position + Vector3.up * (HalfHeight + 0.4f);
@@ -802,6 +832,13 @@ namespace HowToFishMon
 
             Mon.CurrentHp = Mathf.Max(0, Mon.CurrentHp - h.Damage);
             FishMonController.AddFloat(head, $"{_boss.Name} used {move.Name}!  -{h.Damage}", new Color(1f, 0.45f, 0.4f));
+            if (!Mon.Fainted)
+            {
+                if (Statuses.TryThaw(Mon.Status, move))
+                    FishMonController.AddFloat(head + Vector3.up * 0.5f, Mon.DisplayName + Statuses.Cured(StatusCond.Freeze), Statuses.ColorOf(StatusCond.Freeze));
+                else if (Statuses.TryInflict(Mon.Status, move, Mon.Type1, Mon.Type2, false))
+                    FishMonController.ShowToast($"{Mon.DisplayName} {Statuses.Inflicted(Mon.Status.Cond)}", Statuses.ColorOf(Mon.Status.Cond), 3f);
+            }
             try { AudioManager.PlayClipAt("FishPunchHit", transform.position, true, AudioDistance.Short, 0.5f); } catch { }
 
             if (Mon.Fainted) FishMonController.OnCompanionFainted(this);
