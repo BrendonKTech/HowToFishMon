@@ -22,8 +22,7 @@ namespace HowToFishMon
         {
             float w = 860f, h = Mathf.Min(780f, vh - 40f);
             var win = new Rect((vw - w) / 2f, (vh - h) / 2f, w, h);
-            Styles.Fill(win, Styles.Panel);
-            Styles.Border(win, Styles.Accent, 3f);
+            Styles.Window(win, 76f);
             GUI.Label(new Rect(win.x + 20, win.y + 12, 400, 36), "FishMon Mod Menu", Styles.Title);
             if (GUI.Button(new Rect(win.xMax - 100, win.y + 14, 80, 34), "Close", Styles.Button)) { close(); return; }
             GUI.Label(new Rect(win.x + 20, win.y + 50, w - 40, 22), _listening != null

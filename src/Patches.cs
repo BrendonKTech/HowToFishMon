@@ -68,6 +68,14 @@ namespace HowToFishMon
         }
     }
 
+    // while a FishMon menu is open, Esc closes that menu (FishMonController.Update) instead of also
+    // opening the game's pause menu underneath it
+    [HarmonyPatch(typeof(PauseManager), "PauseInput")]
+    internal static class PauseInputPatch
+    {
+        private static bool Prefix() => !FishMonController.UIOpen || PauseManager.IsPaused;
+    }
+
     // keep the mouse cursor free while a FishMon menu is open
     [HarmonyPatch(typeof(PlayerCamera), nameof(PlayerCamera.ToggleMouse))]
     internal static class ToggleMousePatch

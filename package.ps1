@@ -56,8 +56,13 @@ FishMon $version for How to Fish
 
 1. Install BepInEx 5 if you don't have it yet:
    https://thunderstore.io/c/how-to-fish/p/BepInEx/BepInExPack/
-   (unzip it into your How to Fish folder and run the game once)
-2. Unzip this file into your How to Fish folder too, so you end up with
+   (unzip it into your How to Fish folder where the .exe is and then run the game once)
+
+   OR
+
+   Download the latest version for your Operating System at: https://github.com/BepInEx/BepInEx/releases
+   (Same as above, unzip it into your How To Fish Folder where the .exe is located.)
+2. Unzip this file into your How to Fish folder too with the .exe, so you end up with
    How to Fish/BepInEx/plugins/HowToFishMon/HowToFishMon.dll
 3. Start the game. Catch a fish and press F6!
 

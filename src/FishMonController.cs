@@ -108,8 +108,25 @@ namespace HowToFishMon
             BossManager.OnGlobalBossDespawn += OnBossDespawn;
         }
 
+        private static UnityEngine.EventSystems.EventSystem _mutedEvents;
+
+        private static void MuteGameUi(bool mute)
+        {
+            if (mute)
+            {
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es && es.enabled) { es.enabled = false; _mutedEvents = es; }
+            }
+            else if (_mutedEvents)
+            {
+                _mutedEvents.enabled = true;
+                _mutedEvents = null;
+            }
+        }
+
         private void OnDestroy()
         {
+            MuteGameUi(false);
             BossManager.OnGlobalBossSpawn -= OnBossSpawn;
             BossManager.OnGlobalBossDeath -= OnBossDeath;
             BossManager.OnGlobalBossDespawn -= OnBossDespawn;
@@ -412,6 +429,8 @@ namespace HowToFishMon
                 if (_dirtyTimer > 5f) { _dirtyTimer = 0f; FishMonStorage.Save(); }
             }
 
+            MuteGameUi(UIOpen && !PauseManager.IsPaused);
+
             if (UIOpen && Cursor.lockState != CursorLockMode.None)
             {
                 Cursor.lockState = CursorLockMode.None;
@@ -482,8 +501,7 @@ namespace HowToFishMon
         private void DrawWorldPrompt()
         {
             var r = new Rect(VW / 2f - 280f, VH / 2f - 130f, 560f, 260f);
-            Styles.Fill(r, Styles.Panel);
-            Styles.Border(r, Styles.Accent, 2f);
+            Styles.Window(r, 60f);
             GUI.Label(new Rect(r.x + 24, r.y + 18, r.width - 48, 34), "New world!", Styles.Title);
             GUI.Label(new Rect(r.x + 24, r.y + 60, r.width - 48, 100),
                 $"This is your first time in \"{WorldPrompt}\" with FishMon. Do you want to bring the FishMon you already have, " +
@@ -748,8 +766,7 @@ namespace HowToFishMon
         {
             float w = 1040f, h = 700f;
             var win = new Rect((VW - w) / 2f, (VH - h) / 2f, w, h);
-            Styles.Fill(win, Styles.Panel);
-            Styles.Border(win, Styles.Accent, 3f);
+            Styles.Window(win, 60f);
 
             GUI.Label(new Rect(win.x + 20, win.y + 12, 400, 36), "FishMon", Styles.Title);
             var list = _showingBox ? FishMonStorage.Box : FishMonStorage.Party;

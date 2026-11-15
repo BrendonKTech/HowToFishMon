@@ -7,6 +7,8 @@
 - FishMon now roam around you, mostly in front of your camera, instead of trailing behind you. Toggle it and set the distance in the Mod Menu (on by default, 7 m)
 - Rebind every FishMon key from the Mod Menu (new **Controls** section), with swapping and a warning when a key is also one of the game's keys
 - Key names in messages are easier to read (e.g. "1" instead of "Alpha1")
+- Fresher look for the menus: rounded panels and buttons, soft shadows, a header bar, and the game is dimmed behind open menus
+- Fixed: pressing Esc in a FishMon menu also opened the game's pause menu behind it (with its hover sounds)
 
 ## 1.0.0
 First release!
