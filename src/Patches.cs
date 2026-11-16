@@ -17,7 +17,12 @@ namespace HowToFishMon
                 var c = __instance ? __instance.Creature : null;
                 if (c) Fishdex.MarkSeen(c);
                 if (c && HookedByMe.Add(c))
-                    FishMonController.ShowToast($"{Species.SafeName(c)} is hooked! Land it and pick it up (E) to catch it.", new UnityEngine.Color(0.7f, 0.9f, 1f), 3f);
+                {
+                    string odds = "";
+                    if (Fishdex.Catchable(c) && Plugin.CatchDifficulty.Value > 0f)
+                        odds = $" Catch chance about {Catching.Estimate(c, Abilities.PlayerHas(rod.Holder, Ability.LuckyCharm)):P0}.";
+                    FishMonController.ShowToast($"{Species.SafeName(c)} is hooked! Land it and pick it up (E) to catch it.{odds}", new UnityEngine.Color(0.7f, 0.9f, 1f), 3.5f);
+                }
             }
             catch (System.Exception e)
             {
@@ -47,9 +52,17 @@ namespace HowToFishMon
 
                 bool lucky = Abilities.PlayerHas(player, Ability.LuckyCharm);
                 var mon = Species.CreateFromCreature(c, lucky);
+
+                // it can break free (one try per fish: you keep it as a normal fish)
+                float chance = Catching.Chance(c, mon.Level, lucky);
+                if (chance < 1f && UnityEngine.Random.value >= chance) { Catching.BrokeFree(c, chance); return; }
+
+                bool newSpecies = (Fishdex.Get(c.ID)?.Caught ?? 0) == 0;
+                int readyBefore = DexRewards.ReadyCount;
                 bool party = FishMonStorage.Add(mon);
                 FishMonController.OnCaught(mon, party);
                 if (lucky) FishMonController.ShowToast($"{FishMonController.Active.Mon.DisplayName}'s Lucky Charm gave {mon.SpeciesName} a boost!", new UnityEngine.Color(1f, 0.75f, 0.3f), 4f);
+                if (newSpecies) DexRewards.OnNewSpecies(c, readyBefore);
             }
             catch (System.Exception e)
             {

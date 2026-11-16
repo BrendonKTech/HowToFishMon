@@ -18,7 +18,20 @@ namespace HowToFishMon
             public Dictionary<int, DexEntry> Dex = new Dictionary<int, DexEntry>();
             public float HpMult = 1f; // FishHpMultiplier when this was saved
             public Dictionary<string, int> Bag = new Dictionary<string, int>(); // held items you own but haven't given out, by name
+            public List<string> ClaimedRewards = new List<string>(); // Fishdex milestones already claimed, by id
+            public Dictionary<int, int> Badges = new Dictionary<int, int>(); // boss creature id -> best badge (BadgeTier)
         }
+
+        public static Dictionary<int, int> BadgeTiers => _data.Badges ?? (_data.Badges = new Dictionary<int, int>());
+
+        public static void SetBadge(int bossId, int tier)
+        {
+            BadgeTiers[bossId] = tier;
+            Save();
+        }
+
+        // how many FishMon you can carry: the setting, plus a slot from the badge perk
+        public static int PartyLimit => Plugin.MaxPartySize.Value + HowToFishMon.Badges.ExtraPartySlots;
 
         private static SaveData _data = new SaveData();
 
@@ -27,6 +40,15 @@ namespace HowToFishMon
         public static int TotalCaught => _data.TotalCaught;
         public static Dictionary<int, DexEntry> Dex => _data.Dex ?? (_data.Dex = new Dictionary<int, DexEntry>());
         private static Dictionary<string, int> Bag => _data.Bag ?? (_data.Bag = new Dictionary<string, int>());
+
+        private static List<string> Claimed => _data.ClaimedRewards ?? (_data.ClaimedRewards = new List<string>());
+        public static bool IsClaimed(string rewardId) => Claimed.Contains(rewardId);
+
+        public static void MarkClaimed(string rewardId)
+        {
+            if (!Claimed.Contains(rewardId)) Claimed.Add(rewardId);
+            Save();
+        }
 
         public static int BagCount(HeldItem i) => Bag.TryGetValue(i.ToString(), out int n) ? n : 0;
 
@@ -179,7 +201,7 @@ namespace HowToFishMon
         {
             _data.TotalCaught++;
             Fishdex.RecordCatch(mon);
-            bool toParty = Party.Count < Plugin.MaxPartySize.Value;
+            bool toParty = Party.Count < PartyLimit;
             if (toParty) Party.Add(mon); else Box.Add(mon);
             Save();
             return toParty;
@@ -189,7 +211,7 @@ namespace HowToFishMon
         public static bool AddTraded(FishMon mon)
         {
             Fishdex.RecordCatch(mon);
-            bool toParty = Party.Count < Plugin.MaxPartySize.Value;
+            bool toParty = Party.Count < PartyLimit;
             if (toParty) Party.Add(mon); else Box.Add(mon);
             Save();
             return toParty;
@@ -213,7 +235,7 @@ namespace HowToFishMon
 
         public static bool MoveToParty(FishMon mon)
         {
-            if (!Box.Contains(mon) || Party.Count >= Plugin.MaxPartySize.Value) return false;
+            if (!Box.Contains(mon) || Party.Count >= PartyLimit) return false;
             Box.Remove(mon);
             Party.Add(mon);
             Save();

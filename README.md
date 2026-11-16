@@ -27,7 +27,7 @@ All the keys below are the defaults. You can change any of them in the Mod Menu 
 
 | Feature | How it works |
 |---|---|
-| **Catching FishMon** | The catching mechanic is pretty simple. You play the game normally, catch a fish using your own fishing rod, and then beat it up until it's no longer flopping around. Once it's dead, you can pick it up with **E** to add it to your collection! You'll get a little "Gotcha!" message showing its level, IVs, and nature. Fish you buy or find won't count unless you change `OnlyCatchHooked = false` in the config. |
+| **Catching FishMon** | The catching mechanic is pretty simple. You play the game normally, catch a fish using your own fishing rod, and then beat it up until it's no longer flopping around. Once it's dead, you can pick it up with **E** to try to add it to your collection! Most fish are caught, but rarer (more valuable) and higher-level fish can **break free**. You only get one try per fish; if it breaks free you keep it as a normal fish to sell or eat. The "hooked!" message tells you roughly how likely the catch is (common fish ~90%, very rare ones ~50%, change it with **Catch difficulty** in the Mod Menu). When it works you'll get a little "Gotcha!" message showing its level, IVs, and nature. Fish you buy or find won't count unless you change `OnlyCatchHooked = false` in the config. |
 | **F6 - Main Menu** | Pressing F6 opens the main menu where you'll find your party, Fishdex, moves, and other features. You can check your FishMon's stats, change your party around, rename them, heal them, and more. |
 | **F7 - Send Out / Recall** | This lets you throw out or recall your currently selected FishMon. It'll roam around near you (mostly where you're looking, so you don't have to turn around to see it) and even swim when you're in the water! Turn off **Roam around you** in the Mod Menu if you'd rather it trail behind you. |
 | **F8 - Switch FishMon** | Using F8 switches to your next FishMon in order from top to bottom. It'll automatically skip any FishMon that have fainted. |
@@ -264,9 +264,53 @@ You can also view a spinning 3D model of each creature! Just drag it around to g
 
 Bosses are included at the very end of the Fishdex, along with how many times you've defeated each one.
 
+### Fishdex Rewards
+
+Filling in your Fishdex pays off:
+
+- **New species bonus:** the first time you catch a species you get $25 to $150, more for rarer fish.
+- **Milestones:** press **Rewards** at the bottom of the Fishdex tab to see them. When you reach one, press **Claim**. Items go in your bag, ready to give to a FishMon from its **Item** tab.
+
+| Milestone | Goal | Reward |
+|---|---|---|
+| Rookie Angler | Catch 5 species | $150, 2× Sitrus Berry |
+| Keen Angler | Catch 10 species | $300, 2× Lum Berry, Focus Sash |
+| Fish Collector | 25% of the Fishdex | $500, Scope Lens |
+| Fish Expert | 50% of the Fishdex | $1000, Lucky Egg |
+| Fish Professor | 75% of the Fishdex | $1500, Leftovers |
+| Fishdex Master | The whole Fishdex | $3000, Choice Band, Choice Specs, Expert Belt |
+
+FishMon you get in trades count towards milestones too, but only your own catches give the new species bonus. You can scale the money with **Reward money** in the Mod Menu. In multiplayer, the host needs this version for guests to get the money.
+
 ## Settings / Config
 
 The Mod Menu can be opened by pressing **F9**, or by clicking the Settings button inside the F6 menu.
+
+### Presets
+
+At the top of the Mod Menu you pick a preset:
+
+- **Normal** (the default) - the way FishMon is meant to be played. Bosses, wild creatures and catches get stronger island by island: main bosses go from **Lv. 10 on the first island to Lv. 50 on the last** (the whale), mini bosses are about 70% of that and wild creatures about 40%. New catches go up to 5 levels under the island's boss.
+- **Challenge** - same island levels, but tougher: 1.5x HP instead of 2x, bosses hit 25% harder, half the regen, Heal All and Revive cost double, and fish break free a bit more. **This is the only preset where you can earn boss badges.**
+- **Custom** - change everything yourself, including fixed boss and catch levels.
+
+On Normal and Challenge the balance settings are greyed out, because the preset sets them. Controls, size, roaming, attack effects and detection ranges are always yours to change. Your Custom values are kept while you play on a preset, and come back when you switch to Custom. If you'd already changed settings before presets existed, you start on Custom so nothing changes.
+
+### Boss Badges
+
+On the Challenge preset, beat a boss with a low-level team to earn a badge for it:
+
+| Badge | Every FishMon that fights is at or under | Points |
+|---|---|---|
+| Bronze | the boss's level | 1 |
+| Silver | 80% of the boss's level | 2 |
+| Gold | 60% of the boss's level | 3 |
+
+Each FishMon's level counts from when it first joins the fight, so levelling up mid-fight is fine, but sending in a stronger FishMon isn't. During a boss fight on Challenge, a line under your FishMon's info box shows which badge you're on track for. See all your badges with **F6 → Fishdex → Badges**.
+
+Badge points unlock perks, which work on every preset: +10% EXP, half-price Heal All, +10% damage to bosses, +1 party slot, +5% catch chance and another +10% EXP. Each one needs a share of all the points there are (10%, 25%, 40%, 60%, 80% and 100%).
+
+### Everything else
 
 There's quite a bit you can change here, including:
 
@@ -332,6 +376,11 @@ Here's a quick breakdown of what each file does:
 - `src/ModMenu.cs` - The in-game settings menu.
 - `src/ModelPreview.cs` - Handles the 3D models in the Fishdex.
 - `src/Fishdex.cs` - Handles the Fishdex and seen/caught records.
+- `src/DexRewards.cs` - Catch chances (breaking free), the new species bonus and Fishdex milestones.
+- `src/Presets.cs` - The Normal / Challenge / Custom presets and the island-based levels.
+- `src/Badges.cs` - Boss badges and their perks.
+- `src/Battle.cs`, `src/BattleCompanion.cs`, `src/BattleMenu.cs` - Battles between players' FishMon.
+- `src/Trade.cs`, `src/TradeMenu.cs` - Trading, and the Players tab.
 - `src/Net.cs` - Handles multiplayer communication.
 - `src/RemoteCompanion.cs` - Handles displaying other players' FishMon.
 - `src/Fx.cs` - Handles attack effects, trails, sounds, and other visual effects.

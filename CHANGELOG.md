@@ -1,9 +1,14 @@
 # Changelog
 
 ## Unreleased
-
+- Presets: **Normal**, **Challenge** and **Custom** at the top of the Mod Menu. Normal and Challenge set the balance for you, and boss, wild creature and catch levels now go up island by island (main bosses Lv. 10 on the first island to Lv. 50 on the last). Custom lets you change everything, and keeps your values while you try a preset
+- Boss badges: on the Challenge preset, beat a boss with a team at or under its level (Bronze), 80% of it (Silver) or 60% (Gold). Badge points unlock perks like +10% EXP, half-price Heal All and an extra party slot. See them in **Fishdex → Badges**
 
 ## 1.2.0
+- Catch difficulty: rarer and higher-level fish can break free when you pick them up (one try per fish, you keep it as a normal fish). The "hooked!" message shows the catch chance. Adjust or turn it off with **Catch difficulty** in the Mod Menu
+- Fishdex rewards: money for every new species you catch, plus milestones (5 and 10 species, then 25 / 50 / 75 / 100% of the Fishdex) with money and held items. Claim them from **Fishdex → Rewards**
+
+## 1.1.1
 - Battles: challenge another player from the new **Players** tab. Your FishMon fight it out halfway between you while you walk around and watch. HP and items go back to normal afterwards, and both FishMon get EXP (both players and the host need this version)
 - The **Trade** tab is now the **Players** tab, with both trading and battling
 - The FishMon info box (HP, EXP, controls) moved to the top right so it no longer covers the game's money, health and hunger

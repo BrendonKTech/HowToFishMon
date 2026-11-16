@@ -452,7 +452,7 @@ namespace HowToFishMon
                 }
                 _attackCooldown = 0.6f;
                 _bossAttackTimer = 2.5f + Combat.Random01() * 2f;
-                if (_boss.IsBoss) FishMonController.Participants.Add(Mon);
+                if (_boss.IsBoss) { FishMonController.Participants.Add(Mon); Badges.OnJoined(boss, Mon); }
                 FishMonController.AddFloat(transform.position + Vector3.up, $"{Mon.DisplayName} charges in!", new Color(0.6f, 0.85f, 1f));
             }
             if (_state == State.Follow) _state = State.Engage;

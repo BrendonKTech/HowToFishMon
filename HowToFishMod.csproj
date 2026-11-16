@@ -35,6 +35,16 @@
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- the audio / image modules are built against netstandard 2.1: use the game's copy -->
+    <Reference Include="netstandard"><HintPath>$(ManagedDir)\netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <!-- the friend prank's picture and sound, built into the DLL (see src/Prank.cs) -->
+  <ItemGroup>
+    <EmbeddedResource Include="mantis-related\Face_of_Praying_Mantis.jpg" LogicalName="HowToFishMon.prank.jpg" />
+    <EmbeddedResource Include="mantis-related\prank-sound.wav" LogicalName="HowToFishMon.prank.wav" />
   </ItemGroup>
 
   <!-- After building, copy the mod straight into BepInEx/plugins (skip with: dotnet build -p:SkipInstall=true) -->

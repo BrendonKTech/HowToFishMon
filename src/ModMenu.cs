@@ -35,6 +35,8 @@ namespace HowToFishMon
             _scroll = GUI.BeginScrollView(area, _scroll, new Rect(0, 0, _w, _contentH));
             _y = 6f;
 
+            DrawPresets();
+
             Section("Controls");
             K(Plugin.ModMenuKey, "Mod Menu", "Open / close this settings menu.");
             K(Plugin.PartyKey, "Party menu", "Open / close your party, Box and Fishdex.");
@@ -58,9 +60,15 @@ namespace HowToFishMon
             B(Plugin.AttackEffects, "Attack effects", "Type-themed lights, splashes, lightning, trails and sounds.");
 
             Section("Enemies");
-            I(Plugin.MiniBossLevel, "Mini boss level", "Battle level of mini bosses.", 1, 100, "");
-            I(Plugin.BossLevel, "Main boss level", "Battle level of main bosses.", 1, 100, "");
-            I(Plugin.WildFoeLevel, "Wild creature level", "Battle level of crabs, piranhas and other hostile creatures.", 1, 100, "");
+            if (Presets.Locked)
+                Info("Enemy levels", $"{Presets.IslandText}: main bosses Lv. {Presets.FoeLevel(true, true)}, mini bosses Lv. {Presets.FoeLevel(false, true)}, " +
+                                     $"wild creatures Lv. {Presets.FoeLevel(false, false)}. They go up with each island.");
+            else
+            {
+                I(Plugin.MiniBossLevel, "Mini boss level", "Battle level of mini bosses.", 1, 100, "");
+                I(Plugin.BossLevel, "Main boss level", "Battle level of main bosses.", 1, 100, "");
+                I(Plugin.WildFoeLevel, "Wild creature level", "Battle level of crabs, piranhas and other hostile creatures.", 1, 100, "");
+            }
             F(Plugin.AggroRange, "Boss range", "Your FishMon go for a boss when it's this close to you.", 10f, 200f, "m");
             B(Plugin.FightWildCreatures, "Fight wild creatures", "Also attack hostile creatures that aren't bosses.");
             F(Plugin.WildAggroRange, "Wild creature range", "How close a hostile creature must be before your FishMon go for it.", 0f, 100f, "m");
@@ -79,9 +87,21 @@ namespace HowToFishMon
 
             Section("Catching");
             B(Plugin.OnlyCatchHooked, "Only hooked fish", "Only fish you hooked with your own rod count as a catch.");
-            I(Plugin.MinCatchLevel, "Lowest catch level", "Lowest level a new catch can be.", 1, 100, "");
-            I(Plugin.MaxCatchLevel, "Highest catch level", "Highest level a new catch can be.", 1, 100, "");
+            if (Presets.Locked)
+            {
+                Presets.CatchRange(out int cmin, out int cmax);
+                Info("Catch levels", $"{Presets.IslandText}: new catches are Lv. {cmin} to {cmax}. The top level goes up with each island.");
+            }
+            else
+            {
+                I(Plugin.MinCatchLevel, "Lowest catch level", "Lowest level a new catch can be.", 1, 100, "");
+                I(Plugin.MaxCatchLevel, "Highest catch level", "Highest level a new catch can be.", 1, 100, "");
+            }
             I(Plugin.MaxPartySize, "Party size", "How many FishMon you can carry (extras go to the Box).", 1, 12, "");
+            F(Plugin.CatchDifficulty, "Catch difficulty", "How often fish break free. 0 = always catch, 1 = normal, 2 = twice as often.", 0f, 3f, "x");
+
+            Section("Fishdex");
+            F(Plugin.DexRewardMultiplier, "Reward money", "Scales the money from Fishdex milestones and new-species bonuses. 0 = items only.", 0f, 5f, "x");
 
             _contentH = _y + 10f;
             GUI.EndScrollView();
@@ -99,11 +119,37 @@ namespace HowToFishMon
             else if (GUI.Button(new Rect(win.xMax - 220, fy, 200, 34), "Reset all to defaults", Styles.Button)) _confirmReset = true;
         }
 
+        private static void DrawPresets()
+        {
+            Section("Preset");
+            var row = new Rect(4, _y, _w - 8, 96);
+            Styles.Fill(row, new Color(1f, 1f, 1f, 0.04f));
+            float bw = 150f;
+            var all = new[] { Preset.Normal, Preset.Challenge, Preset.Custom };
+            for (int i = 0; i < all.Length; i++)
+                if (Styles.Tab(new Rect(row.x + 10 + i * (bw + 8), row.y + 8, bw, 34), all[i].ToString(), Presets.Current == all[i])) Presets.Set(all[i]);
+            GUI.Label(new Rect(row.x + 14, row.y + 48, row.width - 28, 46),
+                Presets.Describe(Presets.Current) + (Presets.Locked ? "  <color=#9aa6bd>Greyed-out settings are set by the preset; pick Custom to change them.</color>" : ""),
+                Styles.SmallWrap);
+            _y += 102f;
+        }
+
+        // a row that just explains something (no control)
+        private static void Info(string label, string text)
+        {
+            var row = new Rect(4, _y, _w - 8, 48);
+            Styles.Fill(row, new Color(1f, 1f, 1f, 0.04f));
+            GUI.Label(new Rect(14, _y + 2, 260, 24), label + "  <size=12><color=#9aa6bd>(preset)</color></size>", Styles.SmallBold);
+            GUI.Label(new Rect(14, _y + 24, _w - 30, 22), text, Styles.Dim);
+            _y += 52f;
+        }
+
         private static void ResetAll()
         {
             foreach (var kv in Plugin.Instance.Config)
             {
-                if (kv.Key.Section == "Keys") continue; // keep key bindings
+                if (kv.Key.Section == "Keys" || kv.Key.Section == "General") continue; // keep key bindings and the preset
+                if (Presets.IsLocked(kv.Value)) continue;                            // the preset decides these
                 kv.Value.BoxedValue = kv.Value.DefaultValue;
             }
             FishMonController.ShowToast("FishMon settings reset to defaults.");
@@ -118,11 +164,14 @@ namespace HowToFishMon
             _y += 30f;
         }
 
-        private static Rect RowStart(string label, string desc)
+        // a row for a setting. Settings the preset decides are greyed out (call EndRow after the controls)
+        private static Rect RowStart(string label, string desc, ConfigEntryBase e = null)
         {
+            bool locked = e != null && Presets.IsLocked(e);
             var row = new Rect(4, _y, _w - 8, 48);
             Styles.Fill(row, new Color(1f, 1f, 1f, 0.04f));
-            GUI.Label(new Rect(14, _y + 2, 260, 24), label, Styles.SmallBold);
+            GUI.Label(new Rect(14, _y + 2, 260, 24), locked ? label + "  <size=12><color=#9aa6bd>(preset)</color></size>" : label, Styles.SmallBold);
+            GUI.enabled = !locked;
             GUI.Label(new Rect(14, _y + 24, _w - 30, 22), desc, Styles.Dim);
             _y += 52f;
             return row;
@@ -130,7 +179,8 @@ namespace HowToFishMon
 
         private static bool ResetButton(Rect row, bool isDefault)
         {
-            GUI.enabled = !isDefault;
+            bool locked = !GUI.enabled; // the preset decides this one
+            GUI.enabled = !isDefault && !locked;
             bool hit = GUI.Button(new Rect(row.xMax - 40, row.y + 4, 34, 24), "↺", Styles.Button);
             GUI.enabled = true;
             return hit;
@@ -150,7 +200,7 @@ namespace HowToFishMon
 
         private static void F(ConfigEntry<float> e, string label, string desc, float min, float max, string unit)
         {
-            var row = RowStart(label, desc);
+            var row = RowStart(label, desc, e);
             float step = max <= 10f ? 0.05f : 1f;
             float v = GUI.HorizontalSlider(new Rect(290, row.y + 9, row.width - 470, 16), e.Value, min, max);
             v = Mathf.Round(v / step) * step;
@@ -161,7 +211,7 @@ namespace HowToFishMon
 
         private static void I(ConfigEntry<int> e, string label, string desc, int min, int max, string unit)
         {
-            var row = RowStart(label, desc);
+            var row = RowStart(label, desc, e);
             float v = GUI.HorizontalSlider(new Rect(290, row.y + 9, row.width - 470, 16), e.Value, min, max);
             int iv = Mathf.RoundToInt(v);
             if (max >= 500) iv = Mathf.RoundToInt(v / 5f) * 5; // money in $5 steps
@@ -219,7 +269,7 @@ namespace HowToFishMon
 
         private static void B(ConfigEntry<bool> e, string label, string desc)
         {
-            var row = RowStart(label, desc);
+            var row = RowStart(label, desc, e);
             if (GUI.Button(new Rect(row.xMax - 170, row.y + 4, 120, 26), e.Value ? "<color=#9fffb0>ON</color>" : "<color=#ff9a9a>OFF</color>", Styles.Button))
                 e.Value = !e.Value;
             if (ResetButton(row, e.Value == (bool)e.DefaultValue)) e.Value = (bool)e.DefaultValue;

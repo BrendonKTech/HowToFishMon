@@ -42,7 +42,7 @@ namespace HowToFishMon
 
         public static void GiveExp(FishMon mon, int exp, int[] evYield)
         {
-            float bonus = (mon.Has(Ability.Scholar) ? Abilities.ScholarExp : 1f) * (mon.Holds(HeldItem.LuckyEgg) ? Items.LuckyEggExp : 1f);
+            float bonus = (mon.Has(Ability.Scholar) ? Abilities.ScholarExp : 1f) * (mon.Holds(HeldItem.LuckyEgg) ? Items.LuckyEggExp : 1f) * Badges.ExpBonus;
             if (bonus != 1f && exp > 0) exp = mon.CarryExp(exp * bonus);
             GrantExp(mon, exp, evYield);
 
@@ -136,6 +136,7 @@ namespace HowToFishMon
         private void OnBossSpawn()
         {
             Participants.Clear();
+            Badges.OnBossSpawn(BossManager.Boss);
             if (BossManager.Boss) Fishdex.MarkSeen(BossManager.Boss);
             if (Active) { ShowToast($"A boss appeared! {Active.Mon.DisplayName} is ready to fight!", new Color(1f, 0.6f, 0.4f), 6f); return; }
             var lead = FishMonStorage.Lead;
@@ -149,6 +150,7 @@ namespace HowToFishMon
         {
             var boss = BossManager.Boss;
             if (boss) Fishdex.RecordDefeat(boss);
+            try { Badges.OnBossDefeated(boss, Participants); } catch (Exception e) { Plugin.Log.LogWarning("FishMon badges: " + e.Message); }
             if (Participants.Count == 0 || !boss) { Participants.Clear(); return; }
             var b = BossMon.From(boss);
             var winners = Participants.Where(p => !p.Fainted).ToList();
@@ -169,6 +171,7 @@ namespace HowToFishMon
         private void OnBossDespawn()
         {
             Participants.Clear();
+            Badges.OnBossGone();
             FishMonStorage.Save();
         }
 
@@ -454,6 +457,7 @@ namespace HowToFishMon
             try { Statuses.TickFoes(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon status tick: " + e.Message); }
             try { Trade.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon trade: " + e.Message); }
             try { Battle.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon battle: " + e.Message); }
+            if (inGame) { try { Prank.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon prank: " + e.Message); } }
             try { Net.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon sync: " + e.Message); }
 
             if (FishMonStorage.Dirty)
@@ -805,6 +809,15 @@ namespace HowToFishMon
                 GUI.Label(new Rect(r.x + 12, r.y + 66, r.width - 24, 24), status + evo, Styles.Small);
                 GUI.Label(new Rect(r.x + 12, r.y + 90, r.width - 24, 22),
                     $"<color=#9aa6bd>[{Plugin.KeyName(Plugin.AttackKey)}] attack target  [{Plugin.KeyName(Plugin.StayKey)}] stay/follow  [{Plugin.KeyName(Plugin.SummonKey)}] recall  [{Plugin.KeyName(Plugin.SwapKey)}] swap</color>", Styles.Small);
+
+                // badge challenge (Challenge preset, boss fight): which badge you're still on track for
+                string badge = Badges.HudLine();
+                if (badge != null)
+                {
+                    var br = new Rect(r.x, r.yMax + 6f, r.width, 28f);
+                    Styles.Fill(br, new Color(0.06f, 0.08f, 0.12f, 0.8f));
+                    GUI.Label(new Rect(br.x + 12, br.y + 3, br.width - 24, 22), $"<size=13>{badge}</size>", Styles.Small);
+                }
             }
             else if (bossUp && FishMonStorage.Lead != null)
             {
@@ -826,15 +839,15 @@ namespace HowToFishMon
             GUI.Label(new Rect(win.x + 20, win.y + 12, 400, 36), "FishMon", Styles.Title);
             var list = _showingBox ? FishMonStorage.Box : FishMonStorage.Party;
             bool other = _showingDex || _showingTrade;
-            if (Styles.Tab(new Rect(win.x + 200, win.y + 14, 140, 34), $"Party ({FishMonStorage.Party.Count}/{Plugin.MaxPartySize.Value})", !_showingBox && !other)) { _showingBox = false; _showingDex = _showingTrade = false; _confirmRelease = null; }
+            if (Styles.Tab(new Rect(win.x + 200, win.y + 14, 140, 34), $"Party ({FishMonStorage.Party.Count}/{FishMonStorage.PartyLimit})", !_showingBox && !other)) { _showingBox = false; _showingDex = _showingTrade = false; _confirmRelease = null; }
             if (Styles.Tab(new Rect(win.x + 346, win.y + 14, 110, 34), $"Box ({FishMonStorage.Box.Count})", _showingBox && !other)) { _showingBox = true; _showingDex = _showingTrade = false; _confirmRelease = null; }
-            if (Styles.Tab(new Rect(win.x + 462, win.y + 14, 170, 34), $"Fishdex ({Fishdex.CaughtCount}/{Fishdex.Total})", _showingDex)) { _showingDex = true; _showingTrade = false; _confirmRelease = null; CommitRename(); }
+            if (Styles.Tab(new Rect(win.x + 462, win.y + 14, 170, 34), $"Fishdex ({Fishdex.CaughtCount}/{Fishdex.Total}){(DexRewards.ReadyCount > 0 ? " <color=#ffd84a>!</color>" : "")}", _showingDex)) { _showingDex = true; _showingTrade = false; _confirmRelease = null; CommitRename(); }
             int invites = Trade.Invites.Count + Battle.Invites.Count;
             if (Styles.Tab(new Rect(win.x + 638, win.y + 14, 110, 34), invites > 0 ? $"Players <color=#ffd84a>({invites})</color>" : "Players", _showingTrade)) { _showingTrade = true; _showingDex = false; _confirmRelease = null; CommitRename(); }
 
             if (GUI.Button(new Rect(win.x + 756, win.y + 14, 100, 34), "Settings", Styles.Button)) { SetModMenu(true); return; }
             GUI.enabled = !(Active && Active.Engaged);
-            if (GUI.Button(new Rect(win.x + 862, win.y + 14, 124, 34), CostLabel("Heal All", Plugin.HealAllCost.Value), Styles.Button)) HealAll(Plugin.HealAllCost.Value);
+            if (GUI.Button(new Rect(win.x + 862, win.y + 14, 124, 34), CostLabel("Heal All", Badges.HealAllCost(Plugin.HealAllCost.Value)), Styles.Button)) HealAll(Badges.HealAllCost(Plugin.HealAllCost.Value));
             GUI.enabled = true;
             if (GUI.Button(new Rect(win.xMax - 48, win.y + 14, 36, 34), "X", Styles.Button)) { SetPartyOpen(false); return; }
 
@@ -1005,7 +1018,7 @@ namespace HowToFishMon
             }
             else
             {
-                GUI.enabled = FishMonStorage.Party.Count < Plugin.MaxPartySize.Value;
+                GUI.enabled = FishMonStorage.Party.Count < FishMonStorage.PartyLimit;
                 if (GUI.Button(new Rect(bx, y, bw, bh), "Add to Party", Styles.Button)) FishMonStorage.MoveToParty(m);
                 GUI.enabled = true;
                 if (m.Fainted && GUI.Button(new Rect(bx + bw + 10, y, bw, bh), CostLabel("Revive", Plugin.ReviveCost.Value), Styles.Button)) Revive(m);
@@ -1156,8 +1169,48 @@ namespace HowToFishMon
 
         private bool _showingDex;
         private int _dexSel;
-        private bool _dexDrip;
-        private Vector2 _dexScroll, _dexEntryScroll;
+        private bool _dexDrip, _dexRewards, _dexBadges;
+        private Vector2 _dexScroll, _dexEntryScroll, _dexRewardScroll;
+
+        private void DrawDexRewards(Rect d)
+        {
+            float x = d.x + 20, y = d.y + 14, w = d.width - 40;
+            GUI.Label(new Rect(x, y, w, 36), "Fishdex rewards", Styles.Title);
+            y += 44;
+            GUI.Label(new Rect(x, y, w, 44),
+                $"You've caught <b>{Fishdex.CaughtCount}</b> of {Fishdex.Total} species. Catching a new species also gives a bonus " +
+                $"(${DexRewards.MoneyFor(25)} to ${DexRewards.MoneyFor(150)}, more for rarer fish).", Styles.SmallWrap);
+            y += 54;
+
+            var list = DexRewards.Sorted;
+            const float rowH = 62f;
+            var view = new Rect(x - 6, y, w + 12, d.yMax - 52 - y);
+            _dexRewardScroll = GUI.BeginScrollView(view, _dexRewardScroll, new Rect(0, 0, view.width - 20, list.Count * (rowH + 6)));
+            for (int i = 0; i < list.Count; i++)
+            {
+                var m = list[i];
+                int need = DexRewards.Needed(m);
+                bool claimed = DexRewards.Claimed(m), reached = DexRewards.Reached(m);
+                var row = new Rect(4, i * (rowH + 6), view.width - 28, rowH);
+                Styles.Fill(row, claimed ? new Color(0.5f, 1f, 0.6f, 0.06f) : reached ? new Color(1f, 0.85f, 0.3f, 0.14f) : new Color(1f, 1f, 1f, 0.05f));
+
+                string goal = m.Percent > 0f ? $"{m.Percent:P0} of the Fishdex ({need} species)" : $"Catch {need} species";
+                GUI.Label(new Rect(row.x + 12, row.y + 4, row.width - 190, 26), $"<b>{m.Name}</b>  <size=13><color=#9aa6bd>{goal}</color></size>", Styles.Small);
+                int money = DexRewards.MoneyFor(m.Money);
+                string prize = (money > 0 ? $"${money}" : "") + (m.Items.Length > 0 ? (money > 0 ? "  ·  " : "") + DexRewards.ItemsText(m) : "");
+                GUI.Label(new Rect(row.x + 12, row.y + 30, row.width - 190, 26), prize, Styles.Dim);
+
+                var right = new Rect(row.xMax - 170, row.y + 12, 160, 38);
+                if (claimed) GUI.Label(right, "<color=#9fffb0>✔ Claimed</color>", Styles.Center);
+                else if (reached) { if (GUI.Button(right, "Claim", Styles.Button)) DexRewards.Claim(m); }
+                else
+                {
+                    GUI.Label(new Rect(right.x, right.y - 4, right.width, 22), $"{Mathf.Min(Fishdex.CaughtCount, need)}/{need}", Styles.Center);
+                    Styles.Bar(new Rect(right.x + 10, right.y + 22, right.width - 20, 8), Fishdex.CaughtCount / (float)Mathf.Max(1, need), new Color(1f, 0.8f, 0.35f));
+                }
+            }
+            GUI.EndScrollView();
+        }
 
         private void DrawDex(Rect win, float h)
         {
@@ -1181,7 +1234,7 @@ namespace HowToFishMon
                 var r = new Rect(6, i * (rowH + 4) + 4, view.width - 8, rowH);
                 bool sel = i == _dexSel;
                 Styles.Fill(r, sel ? new Color(0.25f, 0.45f, 0.7f, 0.9f) : new Color(1f, 1f, 1f, seen ? 0.06f : 0.03f));
-                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) _dexSel = i;
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _dexSel = i; _dexRewards = _dexBadges = false; }
                 GUI.Label(new Rect(r.x + 8, r.y, 52, rowH), $"<color=#9aa6bd>#{i + 1:000}</color>", Styles.Small);
                 string name = seen ? Species.SafeName(c) : "<color=#6f7890>???</color>";
                 GUI.Label(new Rect(r.x + 60, r.y, r.width - 150, rowH), name, seen ? Styles.BodyBold : Styles.Body);
@@ -1196,9 +1249,78 @@ namespace HowToFishMon
             var d = new Rect(listRect.xMax + 16, win.y + 62, win.xMax - listRect.xMax - 32, h - 78);
             Styles.Fill(d, Styles.PanelDark);
             _dexSel = Mathf.Clamp(_dexSel, 0, all.Count - 1);
-            DrawDexEntry(d, all[_dexSel], _dexSel + 1);
-            GUI.Label(new Rect(d.x + 20, d.yMax - 30, d.width - 40, 24),
+            if (_dexRewards) DrawDexRewards(d);
+            else if (_dexBadges) DrawBadges(d);
+            else DrawDexEntry(d, all[_dexSel], _dexSel + 1);
+            GUI.Label(new Rect(d.x + 20, d.yMax - 30, d.width - 220, 24),
                 $"Seen {Fishdex.SeenCount}  ·  Caught {Fishdex.CaughtCount} of {Fishdex.Total} catchable creatures", Styles.Dim);
+
+            if (_dexRewards || _dexBadges)
+            {
+                // the Rewards / Badges pages: back to the entry, bottom right
+                if (GUI.Button(new Rect(d.xMax - 180, d.yMax - 42, 164, 34), "Back", Styles.Button)) _dexRewards = _dexBadges = false;
+                return;
+            }
+            // entry page: right under the 3D model (out of the way of the moves)
+            int ready = DexRewards.ReadyCount;
+            float by = d.y + 56 + 230 + 10;
+            if (GUI.Button(new Rect(d.xMax - 250, by, 112, 34), ready > 0 ? $"Rewards <color=#ffd84a>({ready})</color>" : "Rewards", Styles.Button)) _dexRewards = true;
+            if (GUI.Button(new Rect(d.xMax - 132, by, 112, 34), "Badges", Styles.Button)) _dexBadges = true;
+        }
+
+        private Vector2 _badgeScroll;
+
+        private void DrawBadges(Rect d)
+        {
+            float x = d.x + 20, y = d.y + 14, w = d.width - 40;
+            GUI.Label(new Rect(x, y, w - 200, 36), "Boss badges", Styles.Title);
+            GUI.Label(new Rect(x + w - 200, y + 4, 200, 30), $"<color=#ffd84a>{Badges.Points}</color> / {Badges.MaxPoints} points", Styles.TitleRight);
+            y += 44;
+            string preset = Presets.Current == Preset.Challenge
+                ? "<color=#9fffb0>Challenge preset is on: you can earn badges.</color>"
+                : $"<color=#ffb38a>Badges can only be earned on the Challenge preset (you're on {Presets.Current}). Switch in the Mod Menu ({Plugin.KeyName(Plugin.ModMenuKey)}).</color>";
+            GUI.Label(new Rect(x, y, w, 60),
+                preset + "\nBeat a boss with every FishMon that fights it at or under the cap: <b>Bronze</b> = the boss's level, <b>Silver</b> = 80% of it, " +
+                "<b>Gold</b> = 60%. Each FishMon's level counts from when it joins the fight. Bronze is 1 point, Silver 2, Gold 3.", Styles.SmallWrap);
+            y += 72;
+
+            var bosses = Badges.Bosses;
+            const float rowH = 34f;
+            float listH = bosses.Count * (rowH + 4) + 34 + Badges.Perks.Length * (rowH + 4);
+            var view = new Rect(x - 6, y, w + 12, d.yMax - 52 - y);
+            _badgeScroll = GUI.BeginScrollView(view, _badgeScroll, new Rect(0, 0, view.width - 20, listH));
+            float ry = 0f, rw = view.width - 28;
+            foreach (var c in bosses)
+            {
+                var e = Fishdex.Get(c.ID);
+                bool seen = e != null && e.Seen;
+                var tier = Badges.Earned(c.ID);
+                var row = new Rect(4, ry, rw, rowH);
+                Styles.Fill(row, tier != BadgeTier.None ? new Color(1f, 0.85f, 0.3f, 0.1f) : new Color(1f, 1f, 1f, 0.05f));
+                string kind = c.BossType == BossType.Boss ? "Boss" : "Mini boss";
+                GUI.Label(new Rect(row.x + 10, row.y, rw - 280, rowH), (seen ? $"<b>{Species.SafeName(c)}</b>" : "<color=#6f7890>???</color>") + $"  <size=12><color=#9aa6bd>{kind}</color></size>", Styles.Small);
+                for (int t = 1; t <= 3; t++)
+                {
+                    var bt = (BadgeTier)t;
+                    bool got = tier >= bt;
+                    GUI.Label(new Rect(row.xMax - 270 + (t - 1) * 88, row.y, 84, rowH), got ? $"<color={Badges.Color(bt)}>● {bt}</color>" : $"<color=#4f5870>○ {bt}</color>", Styles.Small);
+                }
+                ry += rowH + 4;
+            }
+
+            ry += 6;
+            GUI.Label(new Rect(4, ry, rw, 24), "Perks <size=12><color=#9aa6bd>(they work on every preset)</color></size>", Styles.SmallBold);
+            ry += 28;
+            foreach (var p in Badges.Perks)
+            {
+                bool has = Badges.Has(p);
+                var row = new Rect(4, ry, rw, rowH);
+                Styles.Fill(row, has ? new Color(0.5f, 1f, 0.6f, 0.08f) : new Color(1f, 1f, 1f, 0.04f));
+                GUI.Label(new Rect(row.x + 10, row.y, rw - 160, rowH), $"<b>{p.Name}</b>  <color=#9aa6bd>{p.Desc}</color>", Styles.Small);
+                GUI.Label(new Rect(row.xMax - 150, row.y, 140, rowH), has ? "<color=#9fffb0>✔ Unlocked</color>" : $"{Badges.Points}/{Badges.Needed(p)} points", Styles.SmallRight);
+                ry += rowH + 4;
+            }
+            GUI.EndScrollView();
         }
 
         private void DrawDexEntry(Rect d, Creature c, int num)
@@ -1235,13 +1357,19 @@ namespace HowToFishMon
                 GUI.Label(new Rect(x, y, wl, 24), $"Worth ${info.Worth}  ·  Bosses can't be caught.", Styles.Dim);
                 y += 30;
                 GUI.Label(new Rect(x, y, wl, 24), $"Defeated {e.Defeated} time{(e.Defeated == 1 ? "" : "s")} while you were there.", Styles.Body);
+                y += 32;
+                var badge = Badges.Earned(c.ID);
+                GUI.Label(new Rect(x, y, wl, 24), badge != BadgeTier.None
+                    ? $"Badge: <b><color={Badges.Color(badge)}>{badge}</color></b>"
+                    : "Badge: <color=#9aa6bd>none yet (earn one on the Challenge preset)</color>", Styles.Body);
                 return;
             }
 
             Styles.TypeChip(new Rect(x, y, 90, 24), info.Type1);
             if (info.Type2 != MonType.None) Styles.TypeChip(new Rect(x + 96, y, 90, 24), info.Type2);
             y += 30;
-            GUI.Label(new Rect(x, y, wl, 22), $"Worth ${info.Worth}  ·  about {info.Weight:0.##} kg", Styles.Dim);
+            string odds = Fishdex.Catchable(c) && Plugin.CatchDifficulty.Value > 0f ? $"  ·  catch chance ~{Catching.Estimate(c, false):P0}" : "";
+            GUI.Label(new Rect(x, y, wl, 22), $"Worth ${info.Worth}  ·  about {info.Weight:0.##} kg{odds}", Styles.Dim);
             if (c.Bird) { y += 22; GUI.Label(new Rect(x, y, wl, 22), "<color=#ff9a7a>Birds can't be caught.</color>", Styles.Dim); }
             y += 30;
 

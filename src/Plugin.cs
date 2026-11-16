@@ -58,6 +58,9 @@ namespace HowToFishMon
         public static ConfigEntry<int> MinCatchLevel;
         public static ConfigEntry<int> MaxCatchLevel;
         public static ConfigEntry<int> MaxPartySize;
+        public static ConfigEntry<float> CatchDifficulty;
+        public static ConfigEntry<float> DexRewardMultiplier;
+        public static ConfigEntry<Preset> SettingsPreset;
 
         // battle
         public static ConfigEntry<int> MiniBossLevel;
@@ -141,6 +144,8 @@ namespace HowToFishMon
             MinCatchLevel = Config.Bind("Catching", "MinCatchLevel", 3, "Lowest level a freshly caught FishMon can be.");
             MaxCatchLevel = Config.Bind("Catching", "MaxCatchLevel", 35, "Highest level a freshly caught FishMon can be.");
             MaxPartySize = Config.Bind("Catching", "MaxPartySize", 6, "How many FishMon you can carry. Extra catches go to the Box.");
+            CatchDifficulty = Config.Bind("Catching", "CatchDifficulty", 1f, "How often fish break free when you try to catch them. 0 = always catch, 1 = normal (common fish ~90%, rare fish ~50%), 2 = they break free twice as often.");
+            DexRewardMultiplier = Config.Bind("Fishdex", "RewardMoneyMultiplier", 1f, "Scales the money from Fishdex milestones and the new-species bonus. 0 = no money (milestone items are still given).");
 
             MiniBossLevel = Config.Bind("Battle", "MiniBossLevel", 25, "Level of mini bosses in FishMon battles.");
             BossLevel = Config.Bind("Battle", "BossLevel", 45, "Level of main bosses in FishMon battles.");
@@ -166,8 +171,16 @@ namespace HowToFishMon
             AbilityRerollCost = Config.Bind("Abilities", "AbilityRerollCost", 250, "Money cost to reroll a FishMon's ability in the party menu. 0 = free.");
             ItemPriceMultiplier = Config.Bind("Items", "ItemPriceMultiplier", 1f, "Scales the price of every held item in the shop. 0 = free.");
 
+            // presets: updating from a version without them? (decides whether you start on Normal or Custom)
+            bool firstPresetRun = true;
+            try { firstPresetRun = !System.IO.File.Exists(Config.ConfigFilePath) || !System.IO.File.ReadAllText(Config.ConfigFilePath).Contains("Preset = "); } catch { }
+            SettingsPreset = Config.Bind("General", "Preset", Preset.Normal,
+                "Normal / Challenge set the balance settings for you (they're locked) and make enemies and catches stronger island by island. " +
+                "Custom lets you change everything. Boss badges can only be earned on Challenge. Change it in the Mod Menu.");
+
             // the mod menu changes values while you drag sliders; save once when it closes instead of every frame
             Config.SaveOnConfigSet = false;
+            Presets.Init(firstPresetRun);
             Config.Save();
 
             FishMonStorage.Load();

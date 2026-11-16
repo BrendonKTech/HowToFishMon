@@ -22,8 +22,7 @@ namespace HowToFishMon
         {
             var b = new BossMon { Creature = c, IsMain = c.BossType == BossType.Boss, IsBoss = c.BossType != BossType.None };
             b.Name = Species.SafeName(c);
-            int lvl = b.IsMain ? Plugin.BossLevel.Value : b.IsBoss ? Plugin.MiniBossLevel.Value : Plugin.WildFoeLevel.Value;
-            b.Level = Mathf.Clamp(lvl, 1, 100);
+            b.Level = Presets.FoeLevel(b.IsMain, b.IsBoss); // the island decides on Normal / Challenge, the settings on Custom
             var types = Species.TypesFor(b.Name, c.GetType().Name, c.ID);
             b.Type1 = types.Item1;
             b.Type2 = types.Item2 == types.Item1 ? MonType.None : types.Item2;
@@ -103,7 +102,7 @@ namespace HowToFishMon
         {
             bool phys = m.Category == MoveCategory.Physical;
             return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
-                m, f.Type1, f.Type2, b.Type1, b.Type2, mult * AttackerMult(f, phys),
+                m, f.Type1, f.Type2, b.Type1, b.Type2, mult * AttackerMult(f, phys) * Badges.DamageBonus,
                 f.Holds(HeldItem.ScopeLens) ? Items.ScopeLensCritOdds : 16,
                 f.Holds(HeldItem.ExpertBelt) ? Items.ExpertBeltBoost : 1f);
         }

@@ -367,7 +367,7 @@ namespace HowToFishMon
             }
 
             // level: random, nudged up by bigger-than-average weight rolls
-            int min = Plugin.MinCatchLevel.Value, max = Math.Max(min, Plugin.MaxCatchLevel.Value);
+            Presets.CatchRange(out int min, out int max);
             float roll = (float)rng.NextDouble();
             if (lucky) roll = Math.Max(roll, (float)rng.NextDouble());
             roll = Mathf.Clamp01(roll * roll + (c.RandomizedWeight - 1f) * 0.8f); // most catches are low level

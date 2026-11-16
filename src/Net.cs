@@ -55,6 +55,18 @@ namespace HowToFishMon
         public int ObjectId;
     }
 
+    // the friend prank (see Prank.cs). The host stamps who sent it, so the target's game can check it came from me
+    public struct MonPrankMsg : IBroadcast
+    {
+        public int Owner;
+    }
+
+    // guest -> host only: "give me this Fishdex reward money" (only the host can add money). Capped by the host
+    public struct MonRewardMsg : IBroadcast
+    {
+        public int Amount;
+    }
+
     // guest -> host only: abilities that need the host (healing you, digging up loot, sell bonus, faster bites)
     public struct MonAbilityMsg : IBroadcast
     {
@@ -198,6 +210,10 @@ namespace HowToFishMon
         {
             GenericWriter<MonSellMsg>.SetWrite((w, m) => w.WriteInt32(m.ObjectId));
             GenericReader<MonSellMsg>.SetRead(r => new MonSellMsg { ObjectId = r.ReadInt32() });
+            GenericWriter<MonPrankMsg>.SetWrite((w, m) => w.WriteInt32(m.Owner));
+            GenericReader<MonPrankMsg>.SetRead(r => new MonPrankMsg { Owner = r.ReadInt32() });
+            GenericWriter<MonRewardMsg>.SetWrite((w, m) => w.WriteInt32(m.Amount));
+            GenericReader<MonRewardMsg>.SetRead(r => new MonRewardMsg { Amount = r.ReadInt32() });
             GenericWriter<MonAbilityMsg>.SetWrite((w, m) => { w.WriteUInt8Unpacked(m.Kind); w.WriteString(m.Ability ?? ""); w.WriteVector3(m.Pos); });
             GenericReader<MonAbilityMsg>.SetRead(r => new MonAbilityMsg { Kind = r.ReadUInt8Unpacked(), Ability = r.ReadStringAllocated(), Pos = r.ReadVector3() });
 
@@ -292,6 +308,16 @@ namespace HowToFishMon
             else if (m.Kind == MonAbilityMsg.Dig && has == Ability.TreasureHunter) TreasureHunter.DigOnServer(player, m.Pos);
         }
 
+        public static void SendPrank() => Send(new MonPrankMsg());
+
+        // guest: ask the host for Fishdex reward money
+        public static bool SendReward(int amount)
+        {
+            if (amount <= 0 || !ClientOnline(_registeredOn)) return false;
+            Send(new MonRewardMsg { Amount = amount });
+            return true;
+        }
+
         // guest: ask the host to sell an item for our Merchant
         public static bool SendSell(Item it)
         {
@@ -312,9 +338,11 @@ namespace HowToFishMon
             nm.ServerManager.RegisterBroadcast<MonAttackMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonSellMsg>((conn, m, ch) => Safe(() => Merchant.OnSellRequest(conn, m.ObjectId)));
             nm.ServerManager.RegisterBroadcast<MonAbilityMsg>((conn, m, ch) => Safe(() => OnAbilityMsg(conn, m)));
+            nm.ServerManager.RegisterBroadcast<MonRewardMsg>((conn, m, ch) => Safe(() => DexRewards.GiveOnServer(PlayerFor(conn.ClientId), m.Amount)));
             nm.ServerManager.RegisterBroadcast<MonStatusMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonTradeMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonBattleMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
+            nm.ServerManager.RegisterBroadcast<MonPrankMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
 
             // every client: show other players' FishMon
             nm.ClientManager.RegisterBroadcast<MonInfoMsg>((m, ch) => Safe(() => OnInfo(m)));
@@ -323,6 +351,7 @@ namespace HowToFishMon
             nm.ClientManager.RegisterBroadcast<MonStatusMsg>((m, ch) => Safe(() => OnStatus(m)));
             nm.ClientManager.RegisterBroadcast<MonTradeMsg>((m, ch) => Safe(() => { if (m.To == MyClientId) Trade.OnMessage(m); }));
             nm.ClientManager.RegisterBroadcast<MonBattleMsg>((m, ch) => Safe(() => { if (!IsMe(m.Owner) && (m.To == MyClientId || m.To == -1)) Battle.OnMessage(m); }));
+            nm.ClientManager.RegisterBroadcast<MonPrankMsg>((m, ch) => Safe(() => { if (!IsMe(m.Owner)) Prank.OnMessage(m.Owner); }));
             Plugin.Log.LogInfo("FishMon multiplayer sync ready.");
         }
 
