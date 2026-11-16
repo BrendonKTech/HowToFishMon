@@ -42,7 +42,8 @@ namespace HowToFishMon
 
         public static void GiveExp(FishMon mon, int exp, int[] evYield)
         {
-            if (mon.Has(Ability.Scholar) && exp > 0) exp = mon.CarryExp(exp * Abilities.ScholarExp);
+            float bonus = (mon.Has(Ability.Scholar) ? Abilities.ScholarExp : 1f) * (mon.Holds(HeldItem.LuckyEgg) ? Items.LuckyEggExp : 1f);
+            if (bonus != 1f && exp > 0) exp = mon.CarryExp(exp * bonus);
             GrantExp(mon, exp, evYield);
 
             // Mentor: everyone else in the party learns a bit from it (EXP only, no EVs)
@@ -837,6 +838,7 @@ namespace HowToFishMon
             float dx = listRect.xMax + 16;
             if (Styles.Tab(new Rect(dx, win.y + 62, 140, 32), "Summary", _detailTab == 0)) { _detailTab = 0; _moveSlot = -1; }
             if (Styles.Tab(new Rect(dx + 146, win.y + 62, 140, 32), "Moves", _detailTab == 1)) { _detailTab = 1; _moveSlot = -1; }
+            if (Styles.Tab(new Rect(dx + 292, win.y + 62, 140, 32), "Item", _detailTab == 2)) { _detailTab = 2; _moveSlot = -1; }
             var detail = new Rect(dx, win.y + 100, win.xMax - listRect.xMax - 32, h - 116);
             Styles.Fill(detail, Styles.PanelDark);
             if (_selected != null && (FishMonStorage.Party.Contains(_selected) || FishMonStorage.Box.Contains(_selected)))
@@ -879,6 +881,7 @@ namespace HowToFishMon
             y += 34;
 
             if (_detailTab == 1) { DrawMoveEditor(new Rect(x, y, w, d.yMax - y - 14), m); return; }
+            if (_detailTab == 2) { DrawItemTab(new Rect(x, y, w, d.yMax - y - 14), m); return; }
 
             GUI.Label(new Rect(x, y, 60, 20), "HP", Styles.Small);
             Styles.HpBar(new Rect(x + 40, y + 5, w - 160, 12), m.CurrentHp / (float)m.MaxHp);
@@ -896,6 +899,16 @@ namespace HowToFishMon
             GUI.Label(new Rect(c2, y, 100, 22), "Base", Styles.SmallBold);
             GUI.Label(new Rect(c3, y, 60, 22), "IV", Styles.SmallBold);
             GUI.Label(new Rect(c4, y, 200, 22), "Judge", Styles.SmallBold);
+
+            // held item, in the free space right of the stat table
+            var itemBox = new Rect(x + w - 168, y, 168, 104);
+            Styles.Fill(itemBox, new Color(1f, 1f, 1f, 0.05f));
+            GUI.Label(new Rect(itemBox.x + 10, itemBox.y + 6, itemBox.width - 20, 20), "Held item", Styles.Dim);
+            var heldInfo = m.ItemInfo;
+            GUI.Label(new Rect(itemBox.x + 10, itemBox.y + 26, itemBox.width - 20, 24),
+                heldInfo != null ? $"<b><color=#ffd84a>{heldInfo.Name}</color></b>" : "<color=#9aa6bd>None</color>", Styles.Small);
+            if (GUI.Button(new Rect(itemBox.x + 10, itemBox.yMax - 40, itemBox.width - 20, 30), heldInfo != null ? "Change" : "Give an item", Styles.Button))
+            { _detailTab = 2; _moveSlot = -1; }
             y += 24;
             for (int s = 0; s < 6; s++)
             {
@@ -975,7 +988,9 @@ namespace HowToFishMon
             {
                 if (GUI.Button(new Rect(d.xMax - 20 - bw * 2 - 10, y - bh - 8, bw, bh), "Yes, release", Styles.DangerButton))
                 {
-                    ShowToast($"Bye bye, {m.DisplayName}!");
+                    var kept = m.ItemInfo;
+                    ShowToast(kept != null ? $"Bye bye, {m.DisplayName}! Its {kept.Name} went back in your bag." : $"Bye bye, {m.DisplayName}!");
+                    if (kept != null) { m.Item = HeldItem.None; FishMonStorage.AddToBag(kept.Id); }
                     FishMonStorage.Release(m);
                     _selected = FishMonStorage.Party.FirstOrDefault() ?? FishMonStorage.Box.FirstOrDefault();
                     _confirmRelease = null;
@@ -990,7 +1005,7 @@ namespace HowToFishMon
 
         // moves tab
 
-        private int _detailTab;          // 0 = summary, 1 = moves
+        private int _detailTab;          // 0 = summary, 1 = moves, 2 = held item
         private int _moveSlot = -1;      // selected move slot in the Moves tab
         private Vector2 _moveScroll;
 

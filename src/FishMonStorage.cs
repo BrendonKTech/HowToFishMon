@@ -17,6 +17,7 @@ namespace HowToFishMon
             public int TotalCaught;
             public Dictionary<int, DexEntry> Dex = new Dictionary<int, DexEntry>();
             public float HpMult = 1f; // FishHpMultiplier when this was saved
+            public Dictionary<string, int> Bag = new Dictionary<string, int>(); // held items you own but haven't given out, by name
         }
 
         private static SaveData _data = new SaveData();
@@ -25,6 +26,24 @@ namespace HowToFishMon
         public static List<FishMon> Box => _data.Box;
         public static int TotalCaught => _data.TotalCaught;
         public static Dictionary<int, DexEntry> Dex => _data.Dex ?? (_data.Dex = new Dictionary<int, DexEntry>());
+        private static Dictionary<string, int> Bag => _data.Bag ?? (_data.Bag = new Dictionary<string, int>());
+
+        public static int BagCount(HeldItem i) => Bag.TryGetValue(i.ToString(), out int n) ? n : 0;
+
+        public static void AddToBag(HeldItem i, int n = 1)
+        {
+            if (i == HeldItem.None || n <= 0) return;
+            Bag[i.ToString()] = BagCount(i) + n;
+            Save();
+        }
+
+        public static bool TakeFromBag(HeldItem i)
+        {
+            int n = BagCount(i);
+            if (n <= 0) return false;
+            if (n == 1) Bag.Remove(i.ToString()); else Bag[i.ToString()] = n - 1;
+            return true;
+        }
 
         // set when something minor changed; the controller saves a few seconds later
         public static bool Dirty;

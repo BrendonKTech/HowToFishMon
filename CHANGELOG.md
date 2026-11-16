@@ -10,6 +10,7 @@
 - Status conditions: Burn, Poison, Paralysis, Sleep and Freeze. Moves can inflict them on foes, and bosses can inflict them on your FishMon
 - Other players now see status conditions on your FishMon and on what it's fighting
 - Trading: swap FishMon with other players from the new **Trade** tab in the party menu (both players and the host need this version)
+- Held items: buy items like Lucky Egg, Leftovers, Choice Band and Sitrus Berry, and give one to each FishMon from the new **Item** tab
 - Fresher look for the menus: rounded panels and buttons, soft shadows, a header bar, and the game is dimmed behind open menus
 - Fixed: pressing Esc in a FishMon menu also opened the game's pause menu behind it (with its hover sounds)
 

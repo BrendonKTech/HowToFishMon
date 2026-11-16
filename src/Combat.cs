@@ -81,13 +81,16 @@ namespace HowToFishMon
     {
         private static readonly System.Random Rng = new System.Random();
 
-        public static HitResult Calc(int level, int atk, int def, Move m, MonType a1, MonType a2, MonType d1, MonType d2, float mult)
+        // critOdds: 1 in this many hits is a critical. superMult: extra damage on super-effective hits (Expert Belt)
+        public static HitResult Calc(int level, int atk, int def, Move m, MonType a1, MonType a2, MonType d1, MonType d2, float mult,
+                                     int critOdds = 16, float superMult = 1f)
         {
             var h = new HitResult();
             if (Rng.Next(100) >= m.Accuracy) { h.Missed = true; return h; }
             h.Eff = TypeChart.Effectiveness(m.Type, d1, d2);
             if (h.Eff <= 0f) return h;
-            h.Crit = Rng.Next(16) == 0;
+            if (h.Eff >= 2f) mult *= superMult;
+            h.Crit = Rng.Next(Mathf.Max(1, critOdds)) == 0;
             float baseDmg = ((2f * level / 5f + 2f) * m.Power * atk / Math.Max(1, def)) / 50f + 2f;
             float stab = (m.Type == a1 || m.Type == a2) ? 1.5f : 1f;
             float rand = 0.85f + (float)Rng.NextDouble() * 0.15f;
@@ -103,8 +106,11 @@ namespace HowToFishMon
             if (f.Has(Ability.Berserker))
                 mult *= 1f + Abilities.BerserkerMax * (1f - Mathf.Clamp01(f.CurrentHp / (float)Mathf.Max(1, f.MaxHp)));
             if (phys && Statuses.Is(f.Status, StatusCond.Burn)) mult *= Statuses.BurnAttack;
+            if (f.Holds(phys ? HeldItem.ChoiceBand : HeldItem.ChoiceSpecs)) mult *= Items.ChoiceBoost;
             return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
-                m, f.Type1, f.Type2, b.Type1, b.Type2, mult);
+                m, f.Type1, f.Type2, b.Type1, b.Type2, mult,
+                f.Holds(HeldItem.ScopeLens) ? Items.ScopeLensCritOdds : 16,
+                f.Holds(HeldItem.ExpertBelt) ? Items.ExpertBeltBoost : 1f);
         }
 
         public static HitResult BossHitsFish(BossMon b, FishMon f, Move m)

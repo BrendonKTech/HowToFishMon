@@ -81,6 +81,7 @@ namespace HowToFishMon
         public static ConfigEntry<int> ReviveCost;
         public static ConfigEntry<float> ReviveHpPercent;
         public static ConfigEntry<int> AbilityRerollCost;
+        public static ConfigEntry<float> ItemPriceMultiplier;
 
         private static float _lastHpMult = 1f;
 
@@ -163,6 +164,7 @@ namespace HowToFishMon
             ReviveCost = Config.Bind("Healing", "ReviveCost", 100, "Money cost to revive one fainted FishMon (party menu). 0 = free.");
             ReviveHpPercent = Config.Bind("Healing", "ReviveHpPercent", 50f, "How much HP (percent of max) a revived FishMon comes back with.");
             AbilityRerollCost = Config.Bind("Abilities", "AbilityRerollCost", 250, "Money cost to reroll a FishMon's ability in the party menu. 0 = free.");
+            ItemPriceMultiplier = Config.Bind("Items", "ItemPriceMultiplier", 1f, "Scales the price of every held item in the shop. 0 = free.");
 
             // the mod menu changes values while you drag sliders; save once when it closes instead of every frame
             Config.SaveOnConfigSet = false;

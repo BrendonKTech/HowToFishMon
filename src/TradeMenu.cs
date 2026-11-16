@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace HowToFishMon
 {
-    // the Trade tab of the party menu
     public partial class FishMonController
     {
         private bool _showingTrade;
@@ -20,7 +19,6 @@ namespace HowToFishMon
             else { DrawTradePlayers(left); DrawTradeRequests(right); }
         }
 
-        // lobby: who you can trade with
         private void DrawTradePlayers(Rect r)
         {
             GUI.Label(new Rect(r.x + 14, r.y + 10, r.width - 28, 26), "Players with FishMon", Styles.BodyBold);
@@ -47,7 +45,6 @@ namespace HowToFishMon
             GUI.EndScrollView();
         }
 
-        // lobby: requests from others, or "waiting for an answer"
         private void DrawTradeRequests(Rect r)
         {
             float x = r.x + 18, w = r.width - 36, y = r.y + 10;
@@ -86,7 +83,6 @@ namespace HowToFishMon
             GUI.EndScrollView();
         }
 
-        // trading: your FishMon to pick from
         private void DrawTradePickList(Rect r)
         {
             GUI.Label(new Rect(r.x + 14, r.y + 10, r.width - 28, 26), Trade.IConfirmed ? "Your offer is locked in" : "Pick a FishMon to offer", Styles.BodyBold);
@@ -112,7 +108,6 @@ namespace HowToFishMon
             GUI.EndScrollView();
         }
 
-        // trading: both offers side by side, confirm / cancel
         private void DrawTradeOffers(Rect r)
         {
             float pad = 14f, gap = 12f;

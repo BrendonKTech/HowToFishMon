@@ -77,6 +77,25 @@ Every FishMon rolls one ability when you catch it. Most are Common, some are Unc
 
 FishMon caught before abilities were added get a random one the first time you load the new version.
 
+## Held Items
+
+Each FishMon can hold one item. Open **F6**, pick a FishMon and go to its **Item** tab. There you can buy items into your bag and give them to it. Giving a FishMon a new item puts its old one back in your bag, and releasing a FishMon keeps its item. One-use items are used up when they trigger, and items go with a FishMon when you trade it.
+
+| Item | Price | What it does |
+|---|---|---|
+| **Lucky Egg** | $600 | Gains 50% more EXP. |
+| **Leftovers** | $500 | Heals 1/16 of its HP every 5 seconds while it's out. |
+| **Choice Band** | $450 | Physical moves do 30% more damage. |
+| **Choice Specs** | $450 | Special moves do 30% more damage. |
+| **Quick Claw** | $350 | Attacks 20% more often. |
+| **Expert Belt** | $350 | Super-effective hits do 20% more damage. |
+| **Scope Lens** | $300 | Lands critical hits twice as often. |
+| **Focus Sash** | $150 | One use: at full HP, survives a hit that would knock it out, with 1 HP left. |
+| **Sitrus Berry** | $60 | One use: heals 25% of its HP when it drops below half. |
+| **Lum Berry** | $50 | One use: cures a status condition. |
+
+You can scale every price (or make them free) with **Item prices** in the Mod Menu.
+
 ## Evolution
 
 Every FishMon can evolve twice, meaning you'll eventually have some pretty crazy-looking fish following you around.

@@ -74,6 +74,9 @@ namespace HowToFishMon
             Section("Abilities");
             I(Plugin.AbilityRerollCost, "Reroll cost", "Price of rerolling a FishMon's ability in the party menu.", 0, 2000, "$");
 
+            Section("Held items");
+            F(Plugin.ItemPriceMultiplier, "Item prices", "Scales the price of every item in the shop (party menu → Item tab). 0 = free.", 0f, 5f, "x");
+
             Section("Catching");
             B(Plugin.OnlyCatchHooked, "Only hooked fish", "Only fish you hooked with your own rod count as a catch.");
             I(Plugin.MinCatchLevel, "Lowest catch level", "Lowest level a new catch can be.", 1, 100, "");

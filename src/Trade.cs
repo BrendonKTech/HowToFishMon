@@ -5,12 +5,6 @@ using UnityEngine;
 
 namespace HowToFishMon
 {
-    // trading FishMon between players. Each player's FishMon live in their own save, so a trade is a
-    // conversation between the two games (through the host):
-    //   A: Request -> B: Accept (or Decline)
-    //   both: Offer (the FishMon as JSON) - any new offer resets both confirmations
-    //   both: Confirm (naming both offers) - once a game has both confirmations it swaps
-    // Confirming locks your offer, so nobody can swap it out after the other side has said yes.
     public static class Trade
     {
         public const byte Request = 0, Accept = 1, Decline = 2, Offer = 3, Confirm = 4, Cancel = 5;
@@ -41,8 +35,6 @@ namespace HowToFishMon
             var p = Net.PlayerFor(clientId);
             return p && !string.IsNullOrEmpty(p.SteamName) ? p.SteamName : "Another player";
         }
-
-        // actions from the menu
 
         public static void Ask(Player p)
         {
@@ -111,8 +103,6 @@ namespace HowToFishMon
 
         private static bool Ours(MonTradeMsg m) => State != Phase.Idle && m.Owner == Partner && m.Session == _session;
 
-        // messages from the other player
-
         public static void OnMessage(MonTradeMsg m)
         {
             switch (m.Kind)
@@ -158,7 +148,6 @@ namespace HowToFishMon
             }
         }
 
-        // a FishMon from the network: fill in anything missing and clamp numbers, so a broken message can't break the save
         private static FishMon Parse(string json)
         {
             if (string.IsNullOrEmpty(json)) return null;
@@ -202,7 +191,6 @@ namespace HowToFishMon
             Plugin.Log.LogInfo($"Traded {give.SpeciesName} (Lv {give.Level}) for {get.SpeciesName} (Lv {get.Level}) with {from}");
         }
 
-        // every frame: time out unanswered requests, and drop trades with players who left
         public static void Tick()
         {
             Invites.RemoveAll(i => Time.unscaledTime - i.At > InviteTimeout || !Net.PlayerFor(i.From));
@@ -219,14 +207,12 @@ namespace HowToFishMon
             }
             else if (MyOffer != null && !Owned(MyOffer))
             {
-                // released it mid-trade
                 MyOffer = null;
                 IConfirmed = TheyConfirmed = false;
                 Net.SendTrade(Partner, Offer, _session, "");
             }
         }
 
-        // left the world / switched saves
         public static void Abort()
         {
             if (State != Phase.Idle) CancelNow();

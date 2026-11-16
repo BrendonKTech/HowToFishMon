@@ -39,6 +39,16 @@ namespace HowToFishMon
         public bool AbilityOn = true;            // the player can switch it off in the party menu
         public string TradedFrom = "";           // name of the player it came from, if it was traded
 
+        // held item, saved by name like the ability
+        [JsonProperty("HeldItem")] public string HeldItemName = "";
+        [JsonIgnore] public HeldItem Item
+        {
+            get => Enum.TryParse(HeldItemName, out HeldItem i) ? i : HeldItem.None;
+            set => HeldItemName = value == HeldItem.None ? "" : value.ToString();
+        }
+        [JsonIgnore] public ItemInfo ItemInfo => Items.Get(Item);
+        public bool Holds(HeldItem i) => i != HeldItem.None && Item == i;
+
         [JsonIgnore] public AbilityInfo AbilityInfo => Abilities.Get(Ability);
         public bool Has(Ability a) => Ability == a && AbilityOn;
 

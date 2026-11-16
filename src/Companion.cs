@@ -345,6 +345,7 @@ namespace HowToFishMon
             TickMedic(player, dt);
             TickTreasure(player, dt);
             if (TickStatus()) return; // fainted from burn / poison
+            TickItem(dt);
 
             // asleep or frozen: stays put (but finishes a leap it already started)
             bool stuck = Statuses.CantAct(Mon.Status) && (_state == State.Follow || _state == State.Engage);
@@ -691,7 +692,7 @@ namespace HowToFishMon
                 _state = _boss != null && !_boss.Dead ? State.Engage : State.Follow;
                 float spe = Mon.CalcStat(Stat.Spe);
                 _attackCooldown = Mathf.Clamp(3.2f - spe * 0.015f, 0.8f, 3.2f) / Mathf.Max(0.1f, Plugin.AttackSpeedMultiplier.Value)
-                                  * (0.85f + Combat.Random01() * 0.3f) / SpeedMult;
+                                  * (0.85f + Combat.Random01() * 0.3f) / SpeedMult / (Mon.Holds(HeldItem.QuickClaw) ? Items.QuickClawRate : 1f);
                 if (_inWater) Effects(transform.position, "FishCaught_Splash", true);
             }
         }
@@ -830,6 +831,12 @@ namespace HowToFishMon
             if (h.Missed) { FishMonController.AddFloat(head, $"Dodged {move.Name}!", new Color(0.7f, 0.9f, 1f)); return; }
             if (h.Eff <= 0f) { FishMonController.AddFloat(head, $"{move.Name}: no effect", Color.gray); return; }
 
+            // Focus Sash: a knockout hit from full HP leaves it hanging on with 1 HP
+            if (Mon.Holds(HeldItem.FocusSash) && Mon.CurrentHp >= Mon.MaxHp && h.Damage >= Mon.CurrentHp && Mon.MaxHp > 1)
+            {
+                h.Damage = Mon.CurrentHp - 1;
+                UseUpItem("hung on using its Focus Sash!");
+            }
             Mon.CurrentHp = Mathf.Max(0, Mon.CurrentHp - h.Damage);
             FishMonController.AddFloat(head, $"{_boss.Name} used {move.Name}!  -{h.Damage}", new Color(1f, 0.45f, 0.4f));
             if (!Mon.Fainted)
