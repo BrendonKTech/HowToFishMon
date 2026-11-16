@@ -148,7 +148,8 @@ namespace HowToFishMon
             }
         }
 
-        private static FishMon Parse(string json)
+        // a FishMon another player sent us (also used by battles), with anything out of range fixed up
+        internal static FishMon Parse(string json)
         {
             if (string.IsNullOrEmpty(json)) return null;
             try
@@ -168,7 +169,7 @@ namespace HowToFishMon
             }
             catch (System.Exception e)
             {
-                Plugin.Log.LogWarning("FishMon trade: couldn't read the other player's FishMon: " + e.Message);
+                Plugin.Log.LogWarning("FishMon: couldn't read the other player's FishMon: " + e.Message);
                 return null;
             }
         }

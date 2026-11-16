@@ -1,6 +1,14 @@
 # Changelog
 
 ## Unreleased
+
+
+## 1.2.0
+- Battles: challenge another player from the new **Players** tab. Your FishMon fight it out halfway between you while you walk around and watch. HP and items go back to normal afterwards, and both FishMon get EXP (both players and the host need this version)
+- The **Trade** tab is now the **Players** tab, with both trading and battling
+- The FishMon info box (HP, EXP, controls) moved to the top right so it no longer covers the game's money, health and hunger
+
+## 1.1.0
 - Abilities: every FishMon rolls an ability (Common to Legendary). Switch it off or reroll it in the party menu
 - First ability: **Merchant** picks up fish you drop and sells them for you
 - All the other abilities work now: **Scholar**, **Thick Scales**, **Speedster**, **Guard**, **Angler**, **Berserker**, **Mentor**, **Medic**, **Treasure Hunter**, **Leech**, **Haggler** and **Lucky Charm**

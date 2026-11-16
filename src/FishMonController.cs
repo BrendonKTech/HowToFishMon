@@ -340,8 +340,17 @@ namespace HowToFishMon
             FishMonStorage.Save();
         }
 
+        // recall / swap would pull the FishMon out of a battle
+        private static bool BlockedByBattle()
+        {
+            if (!Battle.Busy || !Active) return false;
+            ShowToast($"{Active.Mon.DisplayName} is in a battle! To give up, open the party menu ({Plugin.KeyName(Plugin.PartyKey)}) → Players → Forfeit.", new Color(1f, 0.7f, 0.5f), 4f);
+            return true;
+        }
+
         private void ToggleSummon()
         {
+            if (BlockedByBattle()) return;
             if (Active) { Recall(true); return; }
             var lead = FishMonStorage.Lead;
             if (lead == null)
@@ -358,7 +367,7 @@ namespace HowToFishMon
         private void SwapNext()
         {
             var party = FishMonStorage.Party;
-            if (party.Count == 0) return;
+            if (party.Count == 0 || BlockedByBattle()) return;
             int start = Active ? party.IndexOf(Active.Mon) : -1;
             for (int i = 1; i <= party.Count; i++)
             {
@@ -376,8 +385,19 @@ namespace HowToFishMon
             FishMonStorage.Release(m);
         }
 
+        // the FishMon that's out, sending out the lead if none is. Null if nothing can fight
+        public static Companion EnsureOut()
+        {
+            if (Active) return Active;
+            var lead = FishMonStorage.Lead;
+            if (lead != null && Player.LocalPlayer) SendOut(lead);
+            return Active;
+        }
+
         public static void OnCompanionFainted(Companion c)
         {
+            // fainting in a battle against another player just loses the battle (its HP comes back after)
+            if (Battle.Owns(c)) { Battle.Lose(); return; }
             var mon = c.Mon;
             mon.CurrentHp = 0;
             mon.Status.Clear();
@@ -433,6 +453,7 @@ namespace HowToFishMon
             if (inGame) ScanNearbyForDex(player);
             try { Statuses.TickFoes(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon status tick: " + e.Message); }
             try { Trade.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon trade: " + e.Message); }
+            try { Battle.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon battle: " + e.Message); }
             try { Net.Tick(); } catch (Exception e) { Plugin.Log.LogWarning("FishMon sync: " + e.Message); }
 
             if (FishMonStorage.Dirty)
@@ -493,6 +514,7 @@ namespace HowToFishMon
         private void SwitchSave(string world)
         {
             Trade.Abort();
+            Battle.Abort();
             Recall(false);
             Participants.Clear();
             _selected = null;
@@ -628,6 +650,7 @@ namespace HowToFishMon
                 else if (ModMenu.Open) ModMenu.Draw(VW, VH, () => SetModMenu(false));
                 else if (PartyOpen) DrawParty();
                 else DrawHud();
+                if (WorldPrompt == null && !ModMenu.Open && !PartyOpen) DrawBattleHud();
             }
             DrawToasts();
             GUI.matrix = Matrix4x4.identity;
@@ -757,7 +780,8 @@ namespace HowToFishMon
             if (Active)
             {
                 var m = Active.Mon;
-                var r = new Rect(20f, VH - 144f, 420f, 120f);
+                // top right, out of the way of the game's money / health / hunger in the bottom left
+                var r = new Rect(VW - 440f, 20f, 420f, 120f);
                 Styles.Fill(r, new Color(0.06f, 0.08f, 0.12f, 0.8f));
                 Styles.Border(r, Active.Engaged ? new Color(1f, 0.5f, 0.35f) : Styles.Accent, 2f);
                 string star = m.Shiny ? "<color=#ffd84a>★ </color>" : "";
@@ -770,7 +794,9 @@ namespace HowToFishMon
                 GUI.Label(new Rect(r.x + 12 + Styles.BodyBold.CalcSize(new GUIContent(star + m.DisplayName)).x, r.y + 6, 120, 26), stageTag + Statuses.RichTag(m.Status), Styles.Small);
 
                 string status;
-                if (Active.Engaged && Active.Target != null)
+                if (Active.InPvp && Battle.Opponent != null)
+                    status = $"<color=#ffb38a>Battling {Battle.PartnerName}'s {Battle.Opponent.DisplayName}!</color>";
+                else if (Active.Engaged && Active.Target != null)
                     status = Active.OrderedTarget ? $"<color=#ff8a7a>Attacking {Active.Target.Name} (your order)</color>"
                                                   : $"<color=#ffb38a>Fighting {Active.Target.Name}!</color>";
                 else status = Active.Staying ? "<color=#c7d2ff>Staying put</color>" : "Following you";
@@ -783,7 +809,7 @@ namespace HowToFishMon
             else if (bossUp && FishMonStorage.Lead != null)
             {
                 var lead = FishMonStorage.Lead;
-                var r = new Rect(20f, VH - 70f, 420f, 44f);
+                var r = new Rect(VW - 440f, 20f, 420f, 44f);
                 Styles.Fill(r, new Color(0f, 0f, 0f, 0.6f));
                 GUI.Label(r, $"  [{Plugin.KeyName(Plugin.SummonKey)}]  Send out {lead.DisplayName} (Lv. {lead.Level})!", Styles.Body);
             }
@@ -803,8 +829,8 @@ namespace HowToFishMon
             if (Styles.Tab(new Rect(win.x + 200, win.y + 14, 140, 34), $"Party ({FishMonStorage.Party.Count}/{Plugin.MaxPartySize.Value})", !_showingBox && !other)) { _showingBox = false; _showingDex = _showingTrade = false; _confirmRelease = null; }
             if (Styles.Tab(new Rect(win.x + 346, win.y + 14, 110, 34), $"Box ({FishMonStorage.Box.Count})", _showingBox && !other)) { _showingBox = true; _showingDex = _showingTrade = false; _confirmRelease = null; }
             if (Styles.Tab(new Rect(win.x + 462, win.y + 14, 170, 34), $"Fishdex ({Fishdex.CaughtCount}/{Fishdex.Total})", _showingDex)) { _showingDex = true; _showingTrade = false; _confirmRelease = null; CommitRename(); }
-            int invites = Trade.Invites.Count;
-            if (Styles.Tab(new Rect(win.x + 638, win.y + 14, 110, 34), invites > 0 ? $"Trade <color=#ffd84a>({invites})</color>" : "Trade", _showingTrade)) { _showingTrade = true; _showingDex = false; _confirmRelease = null; CommitRename(); }
+            int invites = Trade.Invites.Count + Battle.Invites.Count;
+            if (Styles.Tab(new Rect(win.x + 638, win.y + 14, 110, 34), invites > 0 ? $"Players <color=#ffd84a>({invites})</color>" : "Players", _showingTrade)) { _showingTrade = true; _showingDex = false; _confirmRelease = null; CommitRename(); }
 
             if (GUI.Button(new Rect(win.x + 756, win.y + 14, 100, 34), "Settings", Styles.Button)) { SetModMenu(true); return; }
             GUI.enabled = !(Active && Active.Engaged);

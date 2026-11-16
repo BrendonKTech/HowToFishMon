@@ -16,7 +16,12 @@ namespace HowToFishMon
             Styles.Fill(right, Styles.PanelDark);
 
             if (Trade.State == Trade.Phase.Trading) { DrawTradePickList(left); DrawTradeOffers(right); }
-            else { DrawTradePlayers(left); DrawTradeRequests(right); }
+            else
+            {
+                DrawTradePlayers(left);
+                if (Battle.State != Battle.Phase.Idle) DrawBattlePanel(right);
+                else DrawTradeRequests(right);
+            }
         }
 
         private void DrawTradePlayers(Rect r)
@@ -26,7 +31,7 @@ namespace HowToFishMon
             if (players.Count == 0)
             {
                 GUI.Label(new Rect(r.x + 14, r.y + 44, r.width - 28, 200),
-                    "Nobody else here has the FishMon mod yet.\n\nTo trade, both of you need this version of the mod, and so does the host.", Styles.SmallWrap);
+                    "Nobody else here has the FishMon mod yet.\n\nTo trade or battle, both of you need this version of the mod, and so does the host.", Styles.SmallWrap);
                 return;
             }
 
@@ -37,9 +42,11 @@ namespace HowToFishMon
                 var p = players[i];
                 var row = new Rect(4, i * 50f, view.width - 28, 44);
                 Styles.Fill(row, new Color(1f, 1f, 1f, 0.06f));
-                GUI.Label(new Rect(row.x + 10, row.y, row.width - 120, row.height), p.SteamName, Styles.Small);
+                GUI.Label(new Rect(row.x + 10, row.y, row.width - 196, row.height), p.SteamName, Styles.Small);
+                GUI.enabled = Battle.State == Battle.Phase.Idle;
+                if (GUI.Button(new Rect(row.xMax - 180, row.y + 6, 86, 32), "Battle", Styles.Button)) Battle.Ask(p);
                 GUI.enabled = Trade.State == Trade.Phase.Idle;
-                if (GUI.Button(new Rect(row.xMax - 104, row.y + 6, 98, 32), "Trade", Styles.Button)) Trade.Ask(p);
+                if (GUI.Button(new Rect(row.xMax - 88, row.y + 6, 82, 32), "Trade", Styles.Button)) Trade.Ask(p);
                 GUI.enabled = true;
             }
             GUI.EndScrollView();
@@ -56,29 +63,45 @@ namespace HowToFishMon
                 return;
             }
 
-            GUI.Label(new Rect(x, y, w, 26), "Trade requests", Styles.BodyBold);
+            GUI.Label(new Rect(x, y, w, 26), "Requests", Styles.BodyBold);
             var invites = Trade.Invites.ToList();
-            if (invites.Count == 0)
+            var battles = Battle.Invites.ToList();
+            if (invites.Count == 0 && battles.Count == 0)
             {
-                GUI.Label(new Rect(x, y + 34, w, 220),
-                    "No one has asked to trade yet.\n\n<b>How trading works</b>\n" +
-                    "1. Pick a player on the left and press <b>Trade</b>.\n" +
+                GUI.Label(new Rect(x, y + 34, w, r.height - 50),
+                    "No one has asked to trade or battle yet.\n\n<b>Battles</b>\n" +
+                    "Press <b>Battle</b> next to a player who's close by. Once they accept, the FishMon you both have out " +
+                    "fight it out halfway between you, and you can walk around and watch. Afterwards HP and items go back to " +
+                    "how they were, and both FishMon get EXP (the winner gets the most).\n\n<b>Trading</b>\n" +
+                    "1. Press <b>Trade</b> next to a player.\n" +
                     "2. Once they accept, each of you picks a FishMon to offer. You can see each other's stats, ability and IVs.\n" +
                     "3. When you're both happy, you both press <b>Confirm trade</b>. Changing your offer resets both confirmations.",
                     Styles.SmallWrap);
                 return;
             }
 
+            int rows = battles.Count + invites.Count;
             var view = new Rect(r.x + 6, y + 40, r.width - 12, r.height - 50);
-            _tradeInviteScroll = GUI.BeginScrollView(view, _tradeInviteScroll, new Rect(0, 0, view.width - 20, invites.Count * 56f));
-            for (int i = 0; i < invites.Count; i++)
+            _tradeInviteScroll = GUI.BeginScrollView(view, _tradeInviteScroll, new Rect(0, 0, view.width - 20, rows * 56f));
+            for (int i = 0; i < rows; i++)
             {
-                var inv = invites[i];
+                bool battle = i < battles.Count;
                 var row = new Rect(4, i * 56f, view.width - 28, 50);
-                Styles.Fill(row, new Color(1f, 0.85f, 0.3f, 0.08f));
-                GUI.Label(new Rect(row.x + 12, row.y, row.width - 260, row.height), $"<b>{inv.Name}</b> wants to trade", Styles.Small);
-                if (GUI.Button(new Rect(row.xMax - 236, row.y + 8, 110, 34), "Accept", Styles.Button)) Trade.AcceptInvite(inv);
-                if (GUI.Button(new Rect(row.xMax - 118, row.y + 8, 110, 34), "Decline", Styles.DangerButton)) Trade.DeclineInvite(inv);
+                Styles.Fill(row, battle ? new Color(1f, 0.5f, 0.3f, 0.1f) : new Color(1f, 0.85f, 0.3f, 0.08f));
+                string name = battle ? battles[i].Name : invites[i - battles.Count].Name;
+                GUI.Label(new Rect(row.x + 12, row.y, row.width - 260, row.height), $"<b>{name}</b> wants to {(battle ? "battle" : "trade")}", Styles.Small);
+                bool accept = GUI.Button(new Rect(row.xMax - 236, row.y + 8, 110, 34), "Accept", Styles.Button);
+                bool decline = GUI.Button(new Rect(row.xMax - 118, row.y + 8, 110, 34), "Decline", Styles.DangerButton);
+                if (battle)
+                {
+                    if (accept) Battle.AcceptInvite(battles[i]);
+                    else if (decline) Battle.DeclineInvite(battles[i]);
+                }
+                else
+                {
+                    if (accept) Trade.AcceptInvite(invites[i - battles.Count]);
+                    else if (decline) Trade.DeclineInvite(invites[i - battles.Count]);
+                }
             }
             GUI.EndScrollView();
         }

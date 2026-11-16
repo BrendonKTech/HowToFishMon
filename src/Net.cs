@@ -84,6 +84,15 @@ namespace HowToFishMon
         public string Payload;
     }
 
+    public struct MonBattleMsg : IBroadcast
+    {
+        public int Owner;
+        public int To;
+        public byte Kind;
+        public int Session;
+        public string Payload;
+    }
+
     // sends your FishMon to other players and shows theirs
     public static class Net
     {
@@ -209,6 +218,15 @@ namespace HowToFishMon
             {
                 Owner = r.ReadInt32(), To = r.ReadInt32(), Kind = r.ReadUInt8Unpacked(), Session = r.ReadInt32(), Payload = r.ReadStringAllocated(),
             });
+
+            GenericWriter<MonBattleMsg>.SetWrite((w, m) =>
+            {
+                w.WriteInt32(m.Owner); w.WriteInt32(m.To); w.WriteUInt8Unpacked(m.Kind); w.WriteInt32(m.Session); w.WriteString(m.Payload ?? "");
+            });
+            GenericReader<MonBattleMsg>.SetRead(r => new MonBattleMsg
+            {
+                Owner = r.ReadInt32(), To = r.ReadInt32(), Kind = r.ReadUInt8Unpacked(), Session = r.ReadInt32(), Payload = r.ReadStringAllocated(),
+            });
         }
 
         // status conditions, so other players see BRN / PAR... on our FishMon and on what it's fighting
@@ -244,6 +262,11 @@ namespace HowToFishMon
         public static void SendTrade(int to, byte kind, int session, string payload = "")
         {
             Send(new MonTradeMsg { To = to, Kind = kind, Session = session, Payload = payload });
+        }
+
+        public static void SendBattle(int to, byte kind, int session, string payload = "")
+        {
+            Send(new MonBattleMsg { To = to, Kind = kind, Session = session, Payload = payload });
         }
 
         // guest: ask the host to do something for our FishMon's ability
@@ -291,6 +314,7 @@ namespace HowToFishMon
             nm.ServerManager.RegisterBroadcast<MonAbilityMsg>((conn, m, ch) => Safe(() => OnAbilityMsg(conn, m)));
             nm.ServerManager.RegisterBroadcast<MonStatusMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
             nm.ServerManager.RegisterBroadcast<MonTradeMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
+            nm.ServerManager.RegisterBroadcast<MonBattleMsg>((conn, m, ch) => { m.Owner = conn.ClientId; Relay(conn, m, ch); });
 
             // every client: show other players' FishMon
             nm.ClientManager.RegisterBroadcast<MonInfoMsg>((m, ch) => Safe(() => OnInfo(m)));
@@ -298,6 +322,7 @@ namespace HowToFishMon
             nm.ClientManager.RegisterBroadcast<MonAttackMsg>((m, ch) => Safe(() => OnAttack(m)));
             nm.ClientManager.RegisterBroadcast<MonStatusMsg>((m, ch) => Safe(() => OnStatus(m)));
             nm.ClientManager.RegisterBroadcast<MonTradeMsg>((m, ch) => Safe(() => { if (m.To == MyClientId) Trade.OnMessage(m); }));
+            nm.ClientManager.RegisterBroadcast<MonBattleMsg>((m, ch) => Safe(() => { if (!IsMe(m.Owner) && (m.To == MyClientId || m.To == -1)) Battle.OnMessage(m); }));
             Plugin.Log.LogInfo("FishMon multiplayer sync ready.");
         }
 

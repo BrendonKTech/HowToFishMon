@@ -102,15 +102,33 @@ namespace HowToFishMon
         public static HitResult FishHitsBoss(FishMon f, BossMon b, Move m, float mult = 1f)
         {
             bool phys = m.Category == MoveCategory.Physical;
+            return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
+                m, f.Type1, f.Type2, b.Type1, b.Type2, mult * AttackerMult(f, phys),
+                f.Holds(HeldItem.ScopeLens) ? Items.ScopeLensCritOdds : 16,
+                f.Holds(HeldItem.ExpertBelt) ? Items.ExpertBeltBoost : 1f);
+        }
+
+        // battles between players: our FishMon (a) hits the other player's
+        public static HitResult FishHitsFish(FishMon a, FishMon d, Move m)
+        {
+            bool phys = m.Category == MoveCategory.Physical;
+            float mult = AttackerMult(a, phys) * (d.Has(Ability.ThickScales) ? Abilities.ThickScalesTaken : 1f);
+            return Calc(a.Level, a.CalcStat(phys ? Stat.Atk : Stat.SpA), d.CalcStat(phys ? Stat.Def : Stat.SpD),
+                m, a.Type1, a.Type2, d.Type1, d.Type2, mult,
+                a.Holds(HeldItem.ScopeLens) ? Items.ScopeLensCritOdds : 16,
+                a.Holds(HeldItem.ExpertBelt) ? Items.ExpertBeltBoost : 1f);
+        }
+
+        // everything about the attacker itself that changes how hard it hits
+        private static float AttackerMult(FishMon f, bool phys)
+        {
+            float mult = 1f;
             // Berserker: the more HP it has lost, the harder it hits
             if (f.Has(Ability.Berserker))
                 mult *= 1f + Abilities.BerserkerMax * (1f - Mathf.Clamp01(f.CurrentHp / (float)Mathf.Max(1, f.MaxHp)));
             if (phys && Statuses.Is(f.Status, StatusCond.Burn)) mult *= Statuses.BurnAttack;
             if (f.Holds(phys ? HeldItem.ChoiceBand : HeldItem.ChoiceSpecs)) mult *= Items.ChoiceBoost;
-            return Calc(f.Level, f.CalcStat(phys ? Stat.Atk : Stat.SpA), b.Stats[phys ? Stat.Def : Stat.SpD],
-                m, f.Type1, f.Type2, b.Type1, b.Type2, mult,
-                f.Holds(HeldItem.ScopeLens) ? Items.ScopeLensCritOdds : 16,
-                f.Holds(HeldItem.ExpertBelt) ? Items.ExpertBeltBoost : 1f);
+            return mult;
         }
 
         public static HitResult BossHitsFish(BossMon b, FishMon f, Move m)

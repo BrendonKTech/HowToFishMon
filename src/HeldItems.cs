@@ -44,6 +44,7 @@ namespace HowToFishMon
         private void UseUpItem(string what)
         {
             var info = Mon.ItemInfo;
+            Battle.NoteItemUsed(Mon, Mon.Item); // used up in a battle: it's given back afterwards
             Mon.Item = HeldItem.None;
             FishMonController.AddFloat(transform.position + Vector3.up * (HalfHeight + 1f), $"{Mon.DisplayName} {what}", new Color(1f, 0.85f, 0.4f), 2f);
             if (Plugin.AttackEffects.Value) Fx.Burst(transform.position, new Color(1f, 0.85f, 0.4f), 8, 0.9f);

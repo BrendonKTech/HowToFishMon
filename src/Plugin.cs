@@ -1,4 +1,4 @@
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -11,7 +11,7 @@ namespace HowToFishMon
     {
         public const string Guid = "com.howtofish.fishmon";
         public const string Name = "FishMon";
-        public const string Version = "1.0.0";
+        public const string Version = "1.2.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }

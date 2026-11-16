@@ -37,8 +37,8 @@
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
-  <!-- After building, copy the mod straight into BepInEx/plugins -->
-  <Target Name="CopyToPlugins" AfterTargets="Build">
+  <!-- After building, copy the mod straight into BepInEx/plugins (skip with: dotnet build -p:SkipInstall=true) -->
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="'$(SkipInstall)' != 'true'">
     <MakeDir Directories="$(BepInExDir)\plugins\HowToFishMon" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins\HowToFishMon" />
     <Message Importance="high" Text="Installed $(TargetFileName) to $(BepInExDir)\plugins\HowToFishMon" />

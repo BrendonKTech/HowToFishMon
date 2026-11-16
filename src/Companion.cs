@@ -13,7 +13,7 @@ namespace HowToFishMon
         private enum State { Follow, Engage, Lunge, Recover }
 
         public FishMon Mon { get; private set; }
-        public bool Engaged => _state != State.Follow;
+        public bool Engaged => _state != State.Follow || _pvp;
         public BossMon Target => _boss;
         public float HalfHeight { get; private set; } = 0.3f;
         public bool InWater => _inWater;
@@ -339,6 +339,7 @@ namespace HowToFishMon
             if (!player || Mon == null) return;
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
+            if (_pvp) { UpdatePvp(dt); return; } // battling another player's FishMon (BattleCompanion.cs)
 
             TickGuard(player);
             UpdateTarget(player);
@@ -630,7 +631,11 @@ namespace HowToFishMon
             Vector3 center = _boss.Center;
             Vector3 fromBoss = transform.position - center;
             // aim at the near side of the boss, a bit inside its body
-            Vector3 hitPoint = center + Vector3.ClampMagnitude(fromBoss, _bossRadius * 0.5f);
+            LeapAt(center + Vector3.ClampMagnitude(fromBoss, _bossRadius * 0.5f));
+        }
+
+        private void LeapAt(Vector3 hitPoint)
+        {
             _p0 = transform.position;
             _p1 = hitPoint;
             float dist = Vector3.Distance(_p0, _p1);
@@ -669,7 +674,7 @@ namespace HowToFishMon
             {
                 // if the hit blows up (game update changed something) still finish the leap,
                 // otherwise the fish gets stuck here forever
-                try { Impact(); }
+                try { if (_pvp) PvpImpact(); else Impact(); }
                 catch (System.Exception e)
                 {
                     if (!_impactErrorLogged) Plugin.Log.LogError("FishMon attack failed, the game probably updated: " + e.GetBaseException());
@@ -689,7 +694,7 @@ namespace HowToFishMon
             }
             else
             {
-                _state = _boss != null && !_boss.Dead ? State.Engage : State.Follow;
+                _state = _pvp || (_boss != null && !_boss.Dead) ? State.Engage : State.Follow;
                 float spe = Mon.CalcStat(Stat.Spe);
                 _attackCooldown = Mathf.Clamp(3.2f - spe * 0.015f, 0.8f, 3.2f) / Mathf.Max(0.1f, Plugin.AttackSpeedMultiplier.Value)
                                   * (0.85f + Combat.Random01() * 0.3f) / SpeedMult / (Mon.Holds(HeldItem.QuickClaw) ? Items.QuickClawRate : 1f);
