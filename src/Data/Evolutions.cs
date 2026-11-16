@@ -8,6 +8,9 @@ namespace HowToFishMon
         public int Level;
         public MonType NewType1; // None = keep
         public MonType NewType2; // None = keep
+        // custom species only. Null = keep the previous stage's look
+        public UnityEngine.GameObject Prefab;
+        internal UnityEngine.GameObject Visual;
 
         public EvoStage(string name, int level, MonType t2 = MonType.None, MonType t1 = MonType.None)
         {
@@ -38,14 +41,24 @@ namespace HowToFishMon
             ("whale",     new[] { new EvoStage("Blue Whale", 35),       new EvoStage("Lava Whale", 55, MonType.Fire) }),
         };
 
-        public static EvoStage[] ChainFor(FishMon m) => ChainFor(m.BaseSpecies ?? m.SpeciesName ?? "");
+        public static EvoStage[] ChainFor(FishMon m)
+        {
+            var custom = Api.FishMonAPI.Get(m.SpeciesKey);
+            if (custom != null) return custom.Evolutions ?? Default(custom.Name);
+            return ChainFor(m.BaseSpecies ?? m.SpeciesName ?? "");
+        }
+
+        private static EvoStage[] Default(string baseName) =>
+            new[] { new EvoStage("Big " + baseName, 25), new EvoStage("Mega " + baseName, 45) };
 
         public static EvoStage[] ChainFor(string baseName)
         {
+            var custom = Api.FishMonAPI.FromName(baseName);
+            if (custom != null) return custom.Evolutions ?? Default(custom.Name);
             string s = (baseName ?? "").ToLowerInvariant();
             foreach (var c in Chains)
                 if (s.Contains(c.key)) return c.stages;
-            return new[] { new EvoStage("Big " + baseName, 25), new EvoStage("Mega " + baseName, 45) };
+            return Default(baseName);
         }
 
         // the next stage this FishMon can reach, or null if fully evolved

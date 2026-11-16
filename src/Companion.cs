@@ -157,7 +157,13 @@ namespace HowToFishMon
             parts = 0;
             prefabLayer = -1;
 
-            try { parts = CopyPrefabVisuals(mon.SpeciesId, mon.Shiny, model, out prefabLayer); built = parts > 0; }
+            try
+            {
+                var stageModel = StageVisual(mon);
+                parts = stageModel ? CopyVisualTree(stageModel, mon.Shiny, model, out prefabLayer)
+                                   : CopyPrefabVisuals(mon.SpeciesId, mon.Shiny, model, out prefabLayer);
+                built = parts > 0;
+            }
             catch (System.Exception e) { Plugin.Log.LogWarning("Couldn't copy fish model, using a stand-in: " + e.Message); }
 
             if (!built)
@@ -181,6 +187,47 @@ namespace HowToFishMon
             model.localScale = Vector3.one * scale;
             model.localPosition = -bounds.center * scale;
             halfHeight = Mathf.Max(0.15f, bounds.extents.y * scale);
+        }
+
+        // latest stage model up to its current stage. By SpeciesId, since that's all other players' FishMon send
+        internal static GameObject StageVisual(FishMon mon)
+        {
+            var chain = Api.FishMonAPI.FromId(mon.SpeciesId)?.Evolutions;
+            if (chain == null) return null;
+            for (int i = Mathf.Min(mon.Stage, chain.Length) - 1; i >= 0; i--)
+                if (chain[i]?.Visual) return chain[i].Visual;
+            return null;
+        }
+
+        internal static int CopyVisualTree(GameObject root, bool shiny, Transform model, out int layer)
+        {
+            layer = -1;
+            int count = 0;
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.enabled) continue;
+                Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+                if (!mesh) continue;
+                var part = new GameObject(r.name);
+                part.transform.SetParent(model, false);
+                Matrix4x4 rel = root.transform.worldToLocalMatrix * r.transform.localToWorldMatrix;
+                part.transform.localPosition = rel.GetColumn(3);
+                part.transform.localRotation = rel.rotation;
+                part.transform.localScale = rel.lossyScale;
+                part.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var mr = part.AddComponent<MeshRenderer>();
+                mr.sharedMaterials = r.sharedMaterials;
+                // best guess at how the game draws shinies
+                if (shiny)
+                {
+                    var mats = mr.materials; // instances, so the shared one stays normal
+                    foreach (var m in mats) if (m.HasProperty("_Rainbow_Skin")) m.SetFloat("_Rainbow_Skin", 1f);
+                    mr.materials = mats;
+                }
+                if (layer < 0) layer = r.gameObject.layer;
+                count++;
+            }
+            return count;
         }
 
         // copies the meshes of a creature's prefab under model. Returns how many parts were copied.

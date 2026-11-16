@@ -1371,6 +1371,8 @@ namespace HowToFishMon
             string odds = Fishdex.Catchable(c) && Plugin.CatchDifficulty.Value > 0f ? $"  ·  catch chance ~{Catching.Estimate(c, false):P0}" : "";
             GUI.Label(new Rect(x, y, wl, 22), $"Worth ${info.Worth}  ·  about {info.Weight:0.##} kg{odds}", Styles.Dim);
             if (c.Bird) { y += 22; GUI.Label(new Rect(x, y, wl, 22), "<color=#ff9a7a>Birds can't be caught.</color>", Styles.Dim); }
+            var custom = Api.FishMonAPI.FromItem(c);
+            if (custom != null) { y += 22; GUI.Label(new Rect(x, y, wl, 22), $"<color=#9fd3ff>Found on:</color> {custom.WhereText}", Styles.Dim); }
             y += 30;
 
             var chain = Evolutions.ChainFor(info.Name);

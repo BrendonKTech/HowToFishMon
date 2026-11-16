@@ -42,13 +42,20 @@ $manifest = [ordered]@{
 }
 [System.IO.File]::WriteAllText((Join-Path $PWD "obj/package/manifest.json"), ($manifest | ConvertTo-Json), $utf8)
 
-New-Zip "dist/FishMon-$version-thunderstore.zip" ([ordered]@{
+# ocean species models (optional): built in Unity 6000.4.4f1, see src/Sea/OceanMons.cs
+$bundle = "assets/fishmon-ocean.bundle"
+$hasBundle = Test-Path $bundle
+if ($hasBundle) { Write-Host "  including $bundle" }
+
+$ts = [ordered]@{
     "manifest.json"              = "obj/package/manifest.json"
     "icon.png"                   = "thunderstore/icon.png"
     "README.md"                  = "README.md"
     "CHANGELOG.md"               = "CHANGELOG.md"
     "plugins/HowToFishMon.dll"   = $dll
-})
+}
+if ($hasBundle) { $ts["plugins/fishmon-ocean.bundle"] = $bundle }
+New-Zip "dist/FishMon-$version-thunderstore.zip" $ts
 
 # --- manual install (github release / nexus): unzip into the game folder ---
 $install = @"
@@ -70,9 +77,11 @@ In multiplayer the host needs the mod for players to see each other's FishMon.
 "@
 [System.IO.File]::WriteAllText((Join-Path $PWD "obj/package/INSTALL.txt"), $install.Replace("`n", "`r`n"), $utf8)
 
-New-Zip "dist/FishMon-$version.zip" ([ordered]@{
+$manual = [ordered]@{
     "BepInEx/plugins/HowToFishMon/HowToFishMon.dll" = $dll
     "INSTALL.txt"                                   = "obj/package/INSTALL.txt"
-})
+}
+if ($hasBundle) { $manual["BepInEx/plugins/HowToFishMon/fishmon-ocean.bundle"] = $bundle }
+New-Zip "dist/FishMon-$version.zip" $manual
 
 Write-Host "Done! Upload the zips in dist/"

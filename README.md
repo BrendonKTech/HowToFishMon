@@ -391,3 +391,7 @@ Here's a quick breakdown of what each file does:
 ---
 
 README brought to you by Claude because I hate writing README's lol
+## Credits
+
+- Some ocean species are built on models from [Lowpoly Animated Fish](https://quaternius.itch.io/lowpoly-animated-fish) by Quaternius (CC0).
+- The custom species system is adapted from [MoreFishAPI](https://github.com/hiccup444/howtofish-morefishAPI) by hiccup444 (MIT).

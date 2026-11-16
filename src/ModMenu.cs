@@ -103,6 +103,12 @@ namespace HowToFishMon
             Section("Fishdex");
             F(Plugin.DexRewardMultiplier, "Reward money", "Scales the money from Fishdex milestones and new-species bonuses. 0 = items only.", 0f, 5f, "x");
 
+            Section("Custom species");
+            B(Plugin.OceanSpecies, "Ocean species", "FishMon's own ocean species. Restart the game to apply. Everyone in a lobby needs the same.");
+            F(Plugin.CustomFishRarity, "How often they bite", "Compared to normal fish. Restart the game to apply.", 0f, 5f, "x");
+            F(Plugin.CustomFishBrightness, "Brightness", "How bright their colours are. Restart the game to apply.", 0.4f, 1.2f, "x");
+            DrawForceCatch();
+
             _contentH = _y + 10f;
             GUI.EndScrollView();
 
@@ -156,6 +162,26 @@ namespace HowToFishMon
         }
 
         // rows
+
+        private static int _forcePick;
+
+        private static void DrawForceCatch()
+        {
+            var live = Api.FishMonAPI.Ordered().FindAll(d => d.Live);
+            var row = RowStart("Test: force next catch", live.Count == 0
+                ? "No custom species are in the game (switched off, or they failed to load: see the BepInEx log)."
+                : "The next fish to bite on any rod will be this one. Host only.");
+            if (live.Count == 0) { GUI.enabled = true; return; }
+            _forcePick = (_forcePick % live.Count + live.Count) % live.Count;
+            var pick = live[_forcePick];
+            if (GUI.Button(new Rect(row.xMax - 420, row.y + 4, 34, 26), "<", Styles.Button)) _forcePick--;
+            GUI.Label(new Rect(row.xMax - 380, row.y + 4, 150, 26), pick.Name, Styles.SmallRight);
+            if (GUI.Button(new Rect(row.xMax - 220, row.y + 4, 34, 26), ">", Styles.Button)) _forcePick++;
+            if (GUI.Button(new Rect(row.xMax - 175, row.y + 4, 125, 26), Api.FishMonAPI.Forced == pick.Key ? "<color=#9fffb0>Armed</color>" : "Force it", Styles.Button)
+                && Api.FishMonAPI.ForceNextCatch(pick.Key))
+                FishMonController.ShowToast($"The next bite will be {pick.Name}.", new Color(0.7f, 0.9f, 1f), 3f);
+            GUI.enabled = true;
+        }
 
         private static void Section(string title)
         {

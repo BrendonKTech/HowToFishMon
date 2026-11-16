@@ -7,6 +7,8 @@ using UnityEngine;
 namespace HowToFishMon
 {
     [BepInPlugin(Guid, Name, Version)]
+    // if installed, load after MoreFishAPI so its fish take their ids first
+    [BepInDependency("dazed.howtofish.morefishapi", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "com.howtofish.fishmon";
@@ -61,6 +63,11 @@ namespace HowToFishMon
         public static ConfigEntry<float> CatchDifficulty;
         public static ConfigEntry<float> DexRewardMultiplier;
         public static ConfigEntry<Preset> SettingsPreset;
+
+        public static ConfigEntry<bool> OceanSpecies;
+        public static ConfigEntry<float> CustomFishRarity;
+        public static ConfigEntry<bool> CustomFishInJournal;
+        public static ConfigEntry<float> CustomFishBrightness;
 
         // battle
         public static ConfigEntry<int> MiniBossLevel;
@@ -178,10 +185,19 @@ namespace HowToFishMon
                 "Normal / Challenge set the balance settings for you (they're locked) and make enemies and catches stronger island by island. " +
                 "Custom lets you change everything. Boss badges can only be earned on Challenge. Change it in the Mod Menu.");
 
+            OceanSpecies = Config.Bind("Custom species", "OceanSpecies", true, "Add FishMon's own ocean species (Coralit, Glimmerjel, Leviathorn...) to the game. Everyone in a lobby needs the same setting. Restart the game after changing it.");
+            CustomFishRarity = Config.Bind("Custom species", "Rarity", 1f, "How often custom species bite compared to normal. 0 = they never bite. Restart the game after changing it.");
+            CustomFishInJournal = Config.Bind("Custom species", "InJournal", true, "List custom species in the game's journal (they count towards its achievements). Restart the game after changing it.");
+            CustomFishBrightness = Config.Bind("Custom species", "Brightness", 0.85f, "How bright custom species' colours are. 1 = full, lower = dimmer. Restart the game after changing it.");
+
             // the mod menu changes values while you drag sliders; save once when it closes instead of every frame
             Config.SaveOnConfigSet = false;
             Presets.Init(firstPresetRun);
             Config.Save();
+
+            // species must be registered in Awake
+            Sea.OceanMons.Register();
+            Api.FishMonAPI.OnBuilt += () => { Fishdex.Invalidate(); FishMonStorage.RelinkCustomSpecies(); };
 
             FishMonStorage.Load();
             _lastHpMult = FishHpMultiplier.Value;
@@ -193,6 +209,7 @@ namespace HowToFishMon
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             go.AddComponent<FishMonController>();
+            go.AddComponent<Api.SpeciesBuilder>();
 
             Log.LogInfo($"{Name} {Version} loaded. {FishMonStorage.Party.Count} in party, {FishMonStorage.Box.Count} in box.");
         }

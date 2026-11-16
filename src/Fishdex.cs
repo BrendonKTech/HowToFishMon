@@ -38,7 +38,13 @@ namespace HowToFishMon
                     }
                 }
                 catch (Exception e) { Plugin.Log.LogWarning("Couldn't read the creature list: " + e.Message); }
-                if (_species.Count > 0) Backfill();
+                if (_species.Count > 0)
+                {
+                    Backfill();
+                    int bosses = _species.Count(c => c.BossType != BossType.None), birds = _species.Count(c => c.Bird && c.BossType == BossType.None);
+                    Plugin.Log.LogInfo($"Fishdex: the game's journal has {_species.Count} creatures: {Total} catchable " +
+                                       $"({_species.Count(c => Catchable(c) && Api.FishMonAPI.FromItem(c) != null)} of them custom species), {bosses} bosses, {birds} birds.");
+                }
                 return _species;
             }
         }
@@ -50,6 +56,12 @@ namespace HowToFishMon
             if (!InfoCache.TryGetValue(prefab.ID, out var info))
                 InfoCache[prefab.ID] = info = HowToFishMon.Species.Describe(prefab);
             return info;
+        }
+
+        public static void Invalidate()
+        {
+            _species = null;
+            InfoCache.Clear();
         }
 
         public static bool Catchable(Creature c) => c && !c.Bird && c.BossType == BossType.None;

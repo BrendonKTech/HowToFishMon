@@ -34,6 +34,9 @@
     <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ManagedDir)\UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)\UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
     <!-- the audio / image modules are built against netstandard 2.1: use the game's copy -->
     <Reference Include="netstandard"><HintPath>$(ManagedDir)\netstandard.dll</HintPath><Private>false</Private></Reference>
@@ -45,12 +48,15 @@
   <ItemGroup>
     <EmbeddedResource Include="mantis-related\Face_of_Praying_Mantis.jpg" LogicalName="HowToFishMon.prank.jpg" />
     <EmbeddedResource Include="mantis-related\prank-sound.wav" LogicalName="HowToFishMon.prank.wav" />
+    <!-- ocean species models, made by tools/models/make_models.py -->
+    <EmbeddedResource Include="assets\models\*.obj;assets\models\palette.png" LogicalName="HowToFishMon.models.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- After building, copy the mod straight into BepInEx/plugins (skip with: dotnet build -p:SkipInstall=true) -->
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="'$(SkipInstall)' != 'true'">
     <MakeDir Directories="$(BepInExDir)\plugins\HowToFishMon" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins\HowToFishMon" />
+    <Copy SourceFiles="assets\fishmon-ocean.bundle" DestinationFolder="$(BepInExDir)\plugins\HowToFishMon" Condition="Exists('assets\fishmon-ocean.bundle')" />
     <Message Importance="high" Text="Installed $(TargetFileName) to $(BepInExDir)\plugins\HowToFishMon" />
   </Target>
 

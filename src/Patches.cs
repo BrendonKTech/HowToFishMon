@@ -45,7 +45,7 @@ namespace HowToFishMon
             {
                 if (!player || player != Player.LocalPlayer) return;
                 var c = __instance ? __instance.Creature : null;
-                if (!c || c.Bird || c.BossType != BossType.None || c.ExcludeFromJournal) return;
+                if (!c || c.Bird || c.BossType != BossType.None || (c.ExcludeFromJournal && Api.FishMonAPI.FromItem(c) == null)) return;
                 if (Plugin.OnlyCatchHooked.Value && !HookPatch.HookedByMe.Contains(c)) return;
                 if (!Caught.Add(c)) return;
                 HookPatch.HookedByMe.Remove(c);

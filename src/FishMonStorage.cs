@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
@@ -163,6 +164,26 @@ namespace HowToFishMon
             }
             foreach (var m in Party) Fix(m);
             foreach (var m in Box) Fix(m);
+            if (Api.Injector.Succeeded) RelinkCustomSpecies();
+        }
+
+        // point custom species at the item id their Key got this session
+        public static void RelinkCustomSpecies()
+        {
+            int moved = 0, renamed = 0;
+            foreach (var m in Party.Concat(Box))
+            {
+                var d = Api.FishMonAPI.Get(m.SpeciesKey);
+                if (d == null || !d.Live) continue;
+                if (m.SpeciesId != d.RuntimeItemId) { m.SpeciesId = d.RuntimeItemId; moved++; }
+                // a species (or one of its stages) was renamed: follow it. Nicknames are left alone.
+                string name = m.Stage == 0 ? d.Name
+                            : d.Evolutions != null && m.Stage <= d.Evolutions.Length ? d.Evolutions[m.Stage - 1].Name : m.SpeciesName;
+                if (m.SpeciesName != name || m.BaseSpecies != d.Name) { m.SpeciesName = name; m.BaseSpecies = d.Name; renamed++; }
+            }
+            if (moved > 0) Plugin.Log.LogInfo($"{moved} FishMon of custom species had a new item id this session, fixed.");
+            if (renamed > 0) Plugin.Log.LogInfo($"{renamed} FishMon of renamed custom species now use the new name.");
+            if (moved + renamed > 0) SaveSoon();
         }
 
         private static void Fix(FishMon m)

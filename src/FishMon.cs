@@ -12,6 +12,8 @@ namespace HowToFishMon
     {
         public string Uid = System.Guid.NewGuid().ToString("N");
         public byte SpeciesId;
+        // custom species only. Their item id can change between sessions, the Key can't (see RelinkCustomSpecies)
+        public string SpeciesKey = "";
         public string SpeciesName = "Fish";
         public string Nickname = "";
         public int Level = 5;
@@ -281,6 +283,8 @@ namespace HowToFishMon
 
         public static (MonType, MonType) TypesFor(string name, string className, int seed)
         {
+            var custom = Api.FishMonAPI.FromName(name);
+            if (custom != null) return (custom.Type1, custom.Type2);
             string s = (name + " " + className).ToLowerInvariant();
             foreach (var k in Keywords)
                 if (s.Contains(k.key)) return (k.t1, k.t2);
@@ -337,6 +341,14 @@ namespace HowToFishMon
             var types = TypesFor(name, c.GetType().Name, seed);
             info.Type1 = types.Item1;
             info.Type2 = types.Item2 == types.Item1 ? MonType.None : types.Item2;
+
+            var custom = Api.FishMonAPI.FromItem(c);
+            if (custom != null)
+            {
+                info.Type1 = custom.Type1;
+                info.Type2 = custom.Type2;
+                if (custom.BaseStats != null) info.BaseStats = (int[])custom.BaseStats.Clone();
+            }
             return info;
         }
 
@@ -349,6 +361,7 @@ namespace HowToFishMon
             var mon = new FishMon
             {
                 SpeciesId = c.ID,
+                SpeciesKey = Api.FishMonAPI.FromItem(c)?.Key ?? "",
                 SpeciesName = info.Name,
                 BaseSpecies = info.Name,
                 Nature = rng.Next(Natures.All.Length),
