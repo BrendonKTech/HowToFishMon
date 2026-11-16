@@ -37,7 +37,7 @@ $manifest = [ordered]@{
     name           = "FishMon"
     version_number = $version
     website_url    = "https://github.com/BrendonKTech/HowToFishMon"
-    description    = "Catch fish, level them up, evolve them and have them fight bosses with you. Party, Box, Fishdex, moves, types and multiplayer."
+    description    = "Catch fish, level them up, evolve them and have them fight bosses with you. Now with 14 new ocean species to find across the islands. Party, Box, Fishdex, moves, types and multiplayer."
     dependencies   = @("BepInEx-BepInExPack-5.4.2305")
 }
 [System.IO.File]::WriteAllText((Join-Path $PWD "obj/package/manifest.json"), ($manifest | ConvertTo-Json), $utf8)

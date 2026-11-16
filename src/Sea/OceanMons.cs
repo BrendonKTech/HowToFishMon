@@ -114,6 +114,22 @@ namespace HowToFishMon.Sea
                 new[] { new EvoStage("Barnaclad", 45, MonType.Rock) },
                 new[] { 4, 5 }, "Scientific Lure, Crab Carcass",
                 waterPull: 0.25f); // hostile (Parrotfish template) and slow to slip back into the water, so you have to fight it
+
+            Add("bonefin",     "Bonefin",    "A fish skeleton that never noticed it died. Its eyes still glow.", "Perch", new Color(0.85f, 0.85f, 0.80f), MonType.Water, MonType.Ghost, new[] { 60, 75, 65, 90, 75, 70 }, 220, 0.25f, 250,
+                new[] { new EvoStage("Wraithmaw", 35, MonType.Dark) },
+                new[] { 3, 4, 5 }, "Leech Bait, Crab Carcass");
+
+            Add("cindergill",  "Cindergill", "Lives by undersea vents. The cracks in its scales glow with heat.", "Bluegill", new Color(0.35f, 0.30f, 0.30f), MonType.Fire, MonType.Water, new[] { 65, 85, 60, 90, 60, 70 }, 200, 0.3f, 220,
+                new[] { new EvoStage("Scorchgill", 34) },
+                new[] { 4, 5 }, "Coconut, Scientific Lure");
+
+            Add("kelpling",    "Kelpling",   "Kelp took root on its back, and it decided that was fine.", "Goldfish", new Color(0.45f, 0.75f, 0.40f), MonType.Grass, MonType.Water, new[] { 70, 55, 70, 65, 80, 50 }, 35, 0.6f, 120,
+                new[] { new EvoStage("Kelpwarden", 28) },
+                new[] { 1, 2, 3 }, "Carrot, Leech Bait, Beginner Lure");
+
+            Add("shellmite",   "Shellmite",  "Scuttles along the seabed eating whatever sinks.", "RockCrab", new Color(0.65f, 0.58f, 0.75f), MonType.Bug, MonType.Water, new[] { 50, 70, 90, 35, 55, 45 }, 25, 0.6f, 80,
+                new[] { new EvoStage("Carapod", 22, MonType.Rock) },
+                new[] { 1, 2, 3, 4 }, "Crab Carcass, HotDog, EmptyBeerCan");
         }
     }
 }

@@ -22,6 +22,11 @@ COLOURS = {
     # Frostfin
     "frost_blue": (118, 172, 216), "frost_deep": (70, 116, 176), "frost_white": (228, 240, 248), "frost_crystal": (168, 222, 244),
     # Leviathorn
+    # Bonefin (ghost), Cindergill (fire), Kelpling (grass), Shellmite (bug)
+    "bone_white": (226, 220, 200), "bone_shadow": (160, 152, 136), "ghost_glow": (150, 255, 220), "ghost_wisp": (120, 200, 210),
+    "cinder_black": (48, 42, 44), "cinder_rock": (92, 80, 78), "lava_orange": (246, 120, 40), "lava_yellow": (255, 206, 80),
+    "kelp_green": (78, 138, 64), "kelp_dark": (44, 88, 46), "kelp_light": (160, 196, 88),
+    "mite_shell": (150, 132, 170), "mite_dark": (98, 84, 120), "mite_belly": (206, 194, 214), "mite_leg": (120, 104, 140),
     # Wavelet (dolphin) and Hullback (whale)
     "wave_top": (120, 196, 206), "wave_belly": (240, 196, 210),
     "hull_top": (52, 66, 98), "hull_belly": (214, 190, 146),
@@ -219,7 +224,59 @@ def leviathorn(m):
     tube(m, "mouth", [(0.94, hy - 0.035, -0.032), (0.985, hy, -0.03), (0.94, hy + 0.035, -0.032)], [0.004, 0.004, 0.004], "mouth", segments=5)
 
 
+def bonefin(m):
+    # a fish skeleton that never noticed it died: skull with glowing sockets, spine, ribs and a ghostly fin (~0.6 m)
+    m.flat = True
+    sphere(m, "skull", (0.2, 0, 0.012), (0.075, 0.05, 0.06), "bone_white", segments=8, rings=6)
+    sphere(m, "snout", (0.265, 0, 0.0), (0.04, 0.03, 0.03), "bone_white", segments=8, rings=5)
+    tube(m, "jaw", [(0.14, 0, -0.04), (0.22, 0, -0.045), (0.285, 0, -0.03)], [0.017, 0.014, 0.008], "bone_shadow", segments=6, subsurf=0)
+    for s in (1, -1):
+        disc(m, "socket", side((0.215, 0.042, 0.022), s), 0.022, side((0.4, 1, 0.2), s), "eye_black", depth=0.5)
+        sphere(m, "glow", side((0.222, 0.046, 0.022), s), (0.009, 0.009, 0.009), "ghost_glow", segments=6, rings=4)
+    spine = [(0.13, 0, 0.0), (0.0, 0, 0.005), (-0.13, 0, 0.0), (-0.26, 0, -0.005), (-0.31, 0, -0.005)]
+    tube(m, "spine", spine, [0.012, 0.011, 0.009, 0.007, 0.006], "bone_shadow", segments=6, subsurf=0)
+    for i, x in enumerate([0.11, 0.06, 0.01, -0.04, -0.09, -0.14, -0.19, -0.24]):
+        sphere(m, "vertebra", (x, 0, 0.002), (0.012, 0.016, 0.016), "bone_white", segments=6, rings=4)
+        h = 0.075 * (1 - i / 9)                                   # ribs shrink towards the tail
+        if i < 6:
+            for s in (1, -1):
+                tube(m, "rib", [(x, 0, 0.0), (x - 0.008, s * 0.04, -0.012), (x - 0.016, s * 0.05, -h * 0.6), (x - 0.02, s * 0.03, -h)],
+                     [0.006, 0.005, 0.0045, 0.003], "bone_white", segments=5, subsurf=0)
+        tube(m, "spike", [(x, 0, 0.01), (x - 0.01, 0, 0.01 + h * 0.55)], [0.004, 0.0], "bone_white", segments=4, subsurf=0)
+    # the ghostly membrane along its back and a wispy tail
+    xs = [0.11, 0.06, 0.01, -0.04, -0.09, -0.14, -0.19, -0.24]
+    ribbon(m, "wisp", [(x, 0, 0.012) for x in xs], [(x - 0.01, 0, 0.012 + 0.075 * (1 - i / 9) * 0.5) for i, x in enumerate(xs)], "ghost_wisp", 0.004)
+    for a in (-0.7, -0.35, 0.0, 0.35, 0.7):
+        tube(m, "tailbone", [(-0.3, 0, -0.005), (-0.39, 0, -0.005 + a * 0.13)], [0.005, 0.002], "bone_white", segments=4, subsurf=0)
+    fin(m, [(0, 0.015), (-0.09, 0.1), (-0.11, 0.06), (-0.1, 0), (-0.11, -0.06), (-0.09, -0.1), (0, -0.015)], "ghost_wisp", 0.004, pos=(-0.3, 0, -0.005))
+
+
+def shellmite(m):
+    # a little sea bug: an armoured, segmented shell, short legs and long feelers (~0.24 m)
+    m.flat = True
+    rings = []
+    for i in range(10):
+        t = i / 9
+        x = -0.11 + t * 0.21
+        r = 0.035 + 0.04 * math.sin(math.pi * min(1.0, t * 1.05))
+        bump = 1.08 if i % 2 else 1.0                              # the overlapping plates
+        rings.append((x, r * 1.15 * bump, r * 0.75 * bump, 0.01))
+    lathe(m, "shell", rings, 10, lambda r, a: "mite_belly" if math.sin(a) < -0.35 else ("mite_dark" if r % 2 else "mite_shell"),
+          subsurf=0, offset=math.pi / 10)
+    sphere(m, "head", (0.105, 0, 0.0), (0.03, 0.04, 0.026), "mite_dark", segments=8, rings=5)
+    for s in (1, -1):
+        eye(m, side((0.118, 0.028, 0.012), s), 0.01, side((0.6, 1, 0.3), s))
+        tube(m, "feeler", [side((0.125, 0.012, 0.012), s), side((0.17, 0.04, 0.03), s), side((0.21, 0.07, 0.025), s), side((0.24, 0.09, 0.008), s)],
+             [0.004, 0.003, 0.0025, 0.0015], "mite_leg", segments=4, subsurf=0)
+        for x in (0.07, 0.04, 0.01, -0.02, -0.05, -0.08):
+            tube(m, "leg", [side((x, 0.04, -0.01), s), side((x + 0.004, 0.07, -0.025), s), side((x + 0.01, 0.075, -0.05), s)],
+                 [0.006, 0.005, 0.003], "mite_leg", segments=4, subsurf=0)
+        fin(m, [(0, 0.008), (-0.04, 0.02), (-0.05, 0.0), (-0.02, -0.006)], "mite_dark", 0.004, rot=(s * 1.4, 0, s * 0.35), pos=(-0.11, s * 0.015, 0.008))
+
+
 SPECIES = {
+    "bonefin": bonefin,
+    "shellmite": shellmite,
     "coralit": coralit,
     "inkling": inkling,
     "urchip": urchip,

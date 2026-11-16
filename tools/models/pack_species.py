@@ -106,6 +106,50 @@ def coralit(m):
     _eye(m, obj, hi.x - 0.07, 0.025, 0.026)
 
 
+def cindergill(m):
+    # charcoal fish with glowing lava cracks and magma crystals on its back
+    m.flat = True
+    obj, lo, hi = imported(m, "Fish2", 0.5, {"Body": "cinder_black", "Front": "cinder_rock", "Fins": "cinder_rock"})
+
+    paint(obj, lambda c, n, col: "cinder_rock" if col == "cinder_black" and n.z < -0.6 else None)
+    # glowing cracks: thin zigzag lines laid onto both sides of the body
+    cracks = [[(0.12, 0.06), (0.08, 0.03), (0.06, 0.05), (0.02, 0.01), (-0.01, 0.03)],
+              [(0.1, -0.04), (0.06, -0.02), (0.03, -0.05), (-0.01, -0.03), (-0.05, -0.05)],
+              [(0.02, 0.01), (0.0, -0.02), (-0.03, -0.03)],
+              [(-0.03, 0.06), (-0.06, 0.03), (-0.08, 0.04)]]
+    for s in (1, -1):
+        for line in cracks:
+            pts = []
+            for x, z in line:
+                q, qn = _on(obj, x, z, s)
+                if q is not None: pts.append(q + qn * 0.0015)
+            if len(pts) >= 2:
+                tube(m, "crack", pts, [0.0035] * len(pts), "lava_orange", segments=4, subsurf=0)
+    for x, h in ((0.07, 0.07), (0.0, 0.1), (-0.06, 0.06)):
+        p, n = _top(obj, x)
+        if p is None: continue
+        crystal(m, "magma", p - Vector((0, 0, 0.012)), p + Vector((-0.02, 0, h)), 0.018, "lava_orange", "lava_yellow", segments=5)
+        crystal(m, "magma", p + Vector((0.01, 0.008, -0.012)), p + Vector((0.0, 0.03, h * 0.55)), 0.01, "lava_orange", "lava_yellow", segments=5)
+    _eye(m, obj, hi.x - 0.08, 0.03, 0.022, iris="lava_yellow")
+
+
+def kelpling(m):
+    # small green fish with kelp fronds and an air-bladder bulb growing from its back
+    m.flat = True
+    obj, lo, hi = imported(m, "Fish3", 0.28, {"Body": "kelp_green", "Stripes": "kelp_light", "Outline": "kelp_dark"})
+    p, n = _top(obj, 0.0)
+    top = p.z if p is not None else hi.z * 0.6
+    for dy, lean, h in ((0.0, 0.0, 0.12), (0.018, 0.4, 0.09), (-0.018, -0.4, 0.085)):
+        stalk = [(0.0, dy, top - 0.01), (-0.02, dy + lean * 0.02, top + h * 0.35), (-0.05, dy + lean * 0.04, top + h * 0.7), (-0.09, dy + lean * 0.06, top + h)]
+        tube(m, "stalk", stalk, [0.006, 0.005, 0.004, 0.003], "kelp_dark", segments=4, subsurf=0)
+        for i in (1, 2, 3):                                     # a leaf blade at each joint, alternating sides
+            x, y, z = stalk[i]
+            fin(m, [(0, 0), (-0.035, 0.012), (-0.06, 0.004), (-0.03, -0.006)], "kelp_green" if i % 2 else "kelp_light", 0.003,
+                rot=(0.9 * (1 if i % 2 else -1), -0.5, 0), pos=(x, y, z))
+    sphere(m, "bulb", (-0.09, 0.0, top + 0.12), (0.016, 0.016, 0.02), "kelp_light", segments=8, rings=5)
+    _eye(m, obj, hi.x - 0.045, 0.01, 0.018)
+
+
 def wavelet(m):
     # the pack's dolphin, recoloured
     m.flat = True
@@ -123,6 +167,8 @@ SPECIES = {
     "tidefang": tidefang,
     "frostfin": frostfin,
     "sparkfin": glimmerjel,
+    "cindergill": cindergill,
+    "kelpling": kelpling,
     "wavelet": wavelet,
     "hullback": hullback,
     "coralit": coralit,
