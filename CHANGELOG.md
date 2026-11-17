@@ -1,10 +1,19 @@
 # Changelog
 
+## 1.3.1
+- 4 more ocean species, and the first FishMon for four types: **Bonefin** (Ghost), **Cindergill** (Fire), **Kelpling** (Grass) and **Shellmite** (Bug)
+- The host's preset and balance settings now apply to the whole lobby. Guests see them greyed out in the Mod Menu and get their own settings back when they leave (the host and guests need this version)
+- Fixed: boss badges were never given, even when your team was under the level cap
+- Fixed: beating a boss didn't give your FishMon its EXP, or count towards their bosses defeated and the Fishdex
+- Fixed: most ocean species were invisible when they were a Drip
+- Ocean species no longer bite on quest and special baits: Leech Bait, Crab Carcass, Carrot, the Chum Bucket, Boss Lures, Coconut and the Empty Beer Can
+- Game fish types now match their names more often, e.g. Stonefish is Water/Ground, Flying Fish and Parrotfish are Water/Flying, Clownfish is Water/Fairy and Oarfish is Water/Dragon. FishMon you already have update too
+- Fixed: Sengarat was being treated as a Gar (Water/Steel)
+
 ## 1.3.0
 - Presets: **Normal**, **Challenge** and **Custom** at the top of the Mod Menu. Normal and Challenge set the balance for you, and boss, wild creature and catch levels now go up island by island (main bosses Lv. 10 on the first island to Lv. 50 on the last). Custom lets you change everything, and keeps your values while you try a preset
 - Boss badges: on the Challenge preset, beat a boss with a team at or under its level (Bronze), 80% of it (Silver) or 60% (Gold). Badge points unlock perks like +10% EXP, half-price Heal All and an extra party slot. See them in **Fishdex → Badges**
-- Ocean species: 14 brand new FishMon you can catch, each with its own model, types and evolutions: **Coralit**, **Sparkfin**, **Inkling**, **Urchip**, **Driftray**, **Tidefang**, **Frostfin**, **Wavelet**, **Hullback**, **Bonefin**, **Cindergill**, **Kelpling**, **Shellmite** and the legendary **Leviathorn**
-- First species for four types: **Bonefin** (Ghost), **Cindergill** (Fire), **Kelpling** (Grass) and **Shellmite** (Bug)
+- Ocean species: 10 brand new FishMon you can catch, each with its own model, types and evolutions: **Coralit**, **Sparkfin**, **Inkling**, **Urchip**, **Driftray**, **Tidefang**, **Frostfin**, **Wavelet**, **Hullback** and the legendary **Leviathorn**
 - Each ocean species bites on certain baits and islands only. Its Fishdex entry tells you where to find it (e.g. "Islands 3–5 · Professional Lure, Scientific Lure")
 - **Hullback** is huge (about 4.5 m), hostile and has a lot of HP. Bring your party
 - New **Custom species** section in the Mod Menu: turn the ocean species on or off, change how often they bite and how bright they are, and a test button to make the next bite a chosen species. Everyone in a lobby needs the same setup

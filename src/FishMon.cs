@@ -240,12 +240,45 @@ namespace HowToFishMon
     // turns a game creature into FishMon species data (base stats + types)
     public static class Species
     {
+        // matched against " name classname " in lowercase, first match wins, so put the more specific ones first.
+        // A key with spaces round it (" gar ") only matches the whole word (so Sengarat isn't a Gar).
+        // Changing these also changes FishMon people already have (FishMonStorage.RefreshGameTypes).
         private static readonly (string key, MonType t1, MonType t2)[] Keywords =
         {
+            // bosses
+            ("goblin shark", MonType.Water, MonType.Ghost),
+            ("mutated", MonType.Water, MonType.Poison),
+            ("sunfish", MonType.Water, MonType.Fire),
+            ("manta", MonType.Water, MonType.Flying),
+            // fish whose names say what they are
+            ("stonefish", MonType.Water, MonType.Ground),
+            ("flying fish", MonType.Water, MonType.Flying),
+            ("parrotfish", MonType.Water, MonType.Flying),
+            ("angelfish", MonType.Water, MonType.Fairy),
+            ("clownfish", MonType.Water, MonType.Fairy),
+            ("superdwarf", MonType.Water, MonType.Fairy),
+            ("anglerfish", MonType.Water, MonType.Dark),
+            ("dogfish", MonType.Water, MonType.Dark),
+            ("tigerfish", MonType.Water, MonType.Dark),
+            ("needlefish", MonType.Water, MonType.Steel),
+            ("boxfish", MonType.Water, MonType.Fighting),
+            ("lobster", MonType.Water, MonType.Fighting),
+            ("oarfish", MonType.Water, MonType.Dragon),
+            ("koi", MonType.Water, MonType.Dragon),
+            ("red snapper", MonType.Water, MonType.Fire),
+            (" char ", MonType.Water, MonType.Fire),
+            ("amberjack", MonType.Water, MonType.Rock),
+            ("starfish", MonType.Water, MonType.Psychic),
+            ("urchin", MonType.Water, MonType.Poison),
+            ("sponge", MonType.Water, MonType.Grass),
+            ("tripod", MonType.Water, MonType.Ground),
+            ("halibut", MonType.Water, MonType.Ground),
+            ("voxel", MonType.Water, MonType.Electric),
+            // the original list
             ("puffer", MonType.Water, MonType.Poison),
             ("piranha", MonType.Water, MonType.Dark),
             ("shark", MonType.Water, MonType.Dark),
-            ("eel", MonType.Water, MonType.Electric),
+            (" eel ", MonType.Water, MonType.Electric),
             ("whale", MonType.Water, MonType.Fire),
             ("spider", MonType.Bug, MonType.Rock),
             ("crab", MonType.Water, MonType.Rock),
@@ -253,14 +286,14 @@ namespace HowToFishMon
             ("gull", MonType.Flying, MonType.Water),
             ("bird", MonType.Flying, MonType.Normal),
             ("seahorse", MonType.Water, MonType.Dragon),
-            ("gar", MonType.Water, MonType.Steel),
+            (" gar ", MonType.Water, MonType.Steel),
             ("pike", MonType.Water, MonType.Steel),
             ("trigger", MonType.Water, MonType.Fighting),
-            ("sole", MonType.Water, MonType.Ground),
+            (" sole ", MonType.Water, MonType.Ground),
             ("lemon", MonType.Water, MonType.Grass),
             ("mackerel", MonType.Water, MonType.Ice),
             ("drip", MonType.Water, MonType.Fairy),
-            ("cod", MonType.Water, MonType.Normal),
+            (" cod ", MonType.Water, MonType.Normal),
             ("jelly", MonType.Water, MonType.Poison),
             ("squid", MonType.Water, MonType.Psychic),
             ("octo", MonType.Water, MonType.Psychic),
@@ -285,7 +318,8 @@ namespace HowToFishMon
         {
             var custom = Api.FishMonAPI.FromName(name);
             if (custom != null) return (custom.Type1, custom.Type2);
-            string s = (name + " " + className).ToLowerInvariant();
+            // padded and with dashes as spaces, so whole-word keys (" gar ") work at the start and end too
+            string s = (" " + name + " " + className + " ").ToLowerInvariant().Replace('-', ' ');
             foreach (var k in Keywords)
                 if (s.Contains(k.key)) return (k.t1, k.t2);
             var rng = new System.Random(seed);

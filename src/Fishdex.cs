@@ -41,6 +41,7 @@ namespace HowToFishMon
                 if (_species.Count > 0)
                 {
                     Backfill();
+                    FishMonStorage.RefreshGameTypes();
                     int bosses = _species.Count(c => c.BossType != BossType.None), birds = _species.Count(c => c.Bird && c.BossType == BossType.None);
                     Plugin.Log.LogInfo($"Fishdex: the game's journal has {_species.Count} creatures: {Total} catchable " +
                                        $"({_species.Count(c => Catchable(c) && Api.FishMonAPI.FromItem(c) != null)} of them custom species), {bosses} bosses, {birds} birds.");
@@ -48,6 +49,9 @@ namespace HowToFishMon
                 return _species;
             }
         }
+
+        // the creature list has been read (without trying to read it)
+        public static bool Loaded => _species != null && _species.Count > 0;
 
         private static readonly Dictionary<byte, Species.Info> InfoCache = new Dictionary<byte, Species.Info>();
 

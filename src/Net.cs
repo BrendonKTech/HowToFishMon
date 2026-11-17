@@ -208,6 +208,8 @@ namespace HowToFishMon
 
         private static void SetSellSerializer()
         {
+            GenericWriter<MonSettingsMsg>.SetWrite((w, m) => w.WriteString(m.Payload ?? ""));
+            GenericReader<MonSettingsMsg>.SetRead(r => new MonSettingsMsg { Payload = r.ReadStringAllocated() });
             GenericWriter<MonSellMsg>.SetWrite((w, m) => w.WriteInt32(m.ObjectId));
             GenericReader<MonSellMsg>.SetRead(r => new MonSellMsg { ObjectId = r.ReadInt32() });
             GenericWriter<MonPrankMsg>.SetWrite((w, m) => w.WriteInt32(m.Owner));
@@ -352,6 +354,8 @@ namespace HowToFishMon
             nm.ClientManager.RegisterBroadcast<MonTradeMsg>((m, ch) => Safe(() => { if (m.To == MyClientId) Trade.OnMessage(m); }));
             nm.ClientManager.RegisterBroadcast<MonBattleMsg>((m, ch) => Safe(() => { if (!IsMe(m.Owner) && (m.To == MyClientId || m.To == -1)) Battle.OnMessage(m); }));
             nm.ClientManager.RegisterBroadcast<MonPrankMsg>((m, ch) => Safe(() => { if (!IsMe(m.Owner)) Prank.OnMessage(m.Owner); }));
+            // only the host sends these (straight from its server), guests use them
+            nm.ClientManager.RegisterBroadcast<MonSettingsMsg>((m, ch) => Safe(() => LobbySettings.OnMessage(m)));
             Plugin.Log.LogInfo("FishMon multiplayer sync ready.");
         }
 
@@ -390,8 +394,12 @@ namespace HowToFishMon
                 if (Remotes.Count > 0) ClearRemotes();
                 _lastActive = null;
                 _lastInfoKey = "";
+                LobbySettings.Restore();
+                LobbySettings.ResetHostState();
                 return;
             }
+
+            if (IsHost) Safe(() => LobbySettings.HostTick(nm));
 
             var active = FishMonController.Active;
             string key = InfoKey(active);

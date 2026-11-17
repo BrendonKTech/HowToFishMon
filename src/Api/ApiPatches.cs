@@ -68,23 +68,24 @@ namespace HowToFishMon.Api
             if (_forced) { _forced = false; return; }
             if (__result == null || weights == null) return;
             int island = Presets.CurrentIsland + 1;
-            if (Allowed(__result, island)) return;
+            bool quest = BaitTables.IsQuestTable(weights); // quest baits never catch custom species
+            if (Allowed(__result, island, quest)) return;
 
             float total = 0f;
-            foreach (var w in weights) if (Allowed(w.Fishable, island)) total += w.Weight;
+            foreach (var w in weights) if (Allowed(w.Fishable, island, quest)) total += w.Weight;
             if (total <= 0f) return;
             float roll = UnityEngine.Random.Range(0f, total);
             foreach (var w in weights)
             {
-                if (!Allowed(w.Fishable, island)) continue;
+                if (!Allowed(w.Fishable, island, quest)) continue;
                 if ((roll -= w.Weight) <= 0f) { __result = w.Fishable; return; }
             }
         }
 
-        private static bool Allowed(Fishable f, int island)
+        private static bool Allowed(Fishable f, int island, bool quest)
         {
             var d = f != null ? Injector.FromItem(f.ItemToSpawn) : null;
-            return d == null || d.BitesOn(island);
+            return d == null || (!quest && d.BitesOn(island));
         }
     }
 

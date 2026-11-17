@@ -133,9 +133,14 @@ namespace HowToFishMon
             BossManager.OnGlobalBossDespawn -= OnBossDespawn;
         }
 
+        // the boss being fought. The game clears BossManager.Boss *before* it raises OnGlobalBossDeath,
+        // so the death handler has to use this instead
+        private static Creature _fightBoss;
+
         private void OnBossSpawn()
         {
             Participants.Clear();
+            _fightBoss = BossManager.Boss;
             Badges.OnBossSpawn(BossManager.Boss);
             if (BossManager.Boss) Fishdex.MarkSeen(BossManager.Boss);
             if (Active) { ShowToast($"A boss appeared! {Active.Mon.DisplayName} is ready to fight!", new Color(1f, 0.6f, 0.4f), 6f); return; }
@@ -148,7 +153,8 @@ namespace HowToFishMon
 
         private void OnBossDeath()
         {
-            var boss = BossManager.Boss;
+            var boss = BossManager.Boss ? BossManager.Boss : _fightBoss; // BossManager.Boss is already null here
+            _fightBoss = null;
             if (boss) Fishdex.RecordDefeat(boss);
             try { Badges.OnBossDefeated(boss, Participants); } catch (Exception e) { Plugin.Log.LogWarning("FishMon badges: " + e.Message); }
             if (Participants.Count == 0 || !boss) { Participants.Clear(); return; }
@@ -171,6 +177,7 @@ namespace HowToFishMon
         private void OnBossDespawn()
         {
             Participants.Clear();
+            _fightBoss = null;
             Badges.OnBossGone();
             FishMonStorage.Save();
         }
@@ -570,7 +577,7 @@ namespace HowToFishMon
             else
             {
                 ModMenu.CancelRebind();
-                try { Plugin.Instance.Config.Save(); } catch (Exception e) { Plugin.Log.LogError("Couldn't save config: " + e.Message); }
+                LobbySettings.SaveConfig();
                 FishMonStorage.Save();
             }
             if (UIOpen != was) { try { PlayerCamera.ToggleMouse(UIOpen); } catch { } }
@@ -633,7 +640,7 @@ namespace HowToFishMon
         private void OnApplicationQuit()
         {
             FishMonStorage.Save();
-            try { Plugin.Instance.Config.Save(); } catch { }
+            LobbySettings.SaveConfig();
         }
 
         // GUI

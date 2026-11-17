@@ -135,7 +135,9 @@ namespace HowToFishMon
             for (int i = 0; i < all.Length; i++)
                 if (Styles.Tab(new Rect(row.x + 10 + i * (bw + 8), row.y + 8, bw, 34), all[i].ToString(), Presets.Current == all[i])) Presets.Set(all[i]);
             GUI.Label(new Rect(row.x + 14, row.y + 48, row.width - 28, 46),
-                Presets.Describe(Presets.Current) + (Presets.Locked ? "  <color=#9aa6bd>Greyed-out settings are set by the preset; pick Custom to change them.</color>" : ""),
+                LobbySettings.FromHost
+                    ? $"<color=#ffd27a>You're using the host's settings ({Presets.Current}).</color>  <color=#9aa6bd>Only the host can change the preset and balance settings. Your own come back when you leave.</color>"
+                    : Presets.Describe(Presets.Current) + (Presets.Locked ? "  <color=#9aa6bd>Greyed-out settings are set by the preset; pick Custom to change them.</color>" : ""),
                 Styles.SmallWrap);
             _y += 102f;
         }

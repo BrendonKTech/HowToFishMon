@@ -48,8 +48,13 @@ namespace HowToFishMon
         private static IEnumerable<ConfigEntryBase> LevelEntries =>
             new ConfigEntryBase[] { Plugin.BossLevel, Plugin.MiniBossLevel, Plugin.WildFoeLevel, Plugin.MinCatchLevel, Plugin.MaxCatchLevel };
 
-        // greyed out in the Mod Menu
-        public static bool IsLocked(ConfigEntryBase e) => Locked && (Values.ContainsKey(e) || LevelEntries.Contains(e));
+        // everything a host's lobby shares with its guests (see LobbySettings)
+        internal static IEnumerable<ConfigEntryBase> SyncedEntries =>
+            new ConfigEntryBase[] { Plugin.SettingsPreset }.Concat(Values.Keys).Concat(LevelEntries);
+
+        // greyed out in the Mod Menu: set by the preset, or by the host when you're in someone else's world
+        public static bool IsLocked(ConfigEntryBase e) =>
+            (LobbySettings.FromHost && SyncedEntries.Contains(e)) || (Locked && (Values.ContainsKey(e) || LevelEntries.Contains(e)));
 
         public static string Describe(Preset p)
         {
@@ -80,11 +85,16 @@ namespace HowToFishMon
         {
             var was = Current;
             if (p == was) return;
+            if (LobbySettings.FromHost)
+            {
+                FishMonController.ShowToast("You're using the host's settings. Only the host can change the preset.", new Color(1f, 0.8f, 0.5f), 3f);
+                return;
+            }
             if (was == Preset.Custom) SaveCustom();
             Plugin.SettingsPreset.Value = p;
             if (p == Preset.Custom) LoadCustom();
             else Apply(p);
-            try { Plugin.Instance.Config.Save(); } catch { }
+            LobbySettings.SaveConfig();
             FishMonController.ShowToast($"{p} preset on.", new Color(0.7f, 0.9f, 1f), 3f);
         }
 
@@ -99,7 +109,7 @@ namespace HowToFishMon
 
         // your own values, kept while a preset is on
         private static string CustomPath => Path.Combine(BepInEx.Paths.ConfigPath, "FishMon_custom_settings.json");
-        private static string KeyOf(ConfigEntryBase e) => e.Definition.Section + "/" + e.Definition.Key;
+        internal static string KeyOf(ConfigEntryBase e) => e.Definition.Section + "/" + e.Definition.Key;
 
         private static void SaveCustom()
         {

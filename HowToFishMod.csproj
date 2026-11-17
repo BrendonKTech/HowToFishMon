@@ -13,7 +13,8 @@
     <!-- Change this if the game is installed somewhere else -->
     <GameDir>D:\Program Files (x86)\Steam\steamapps\common\How to Fish\How to Fish</GameDir>
     <ManagedDir>$(GameDir)\How to Fish_Data\Managed</ManagedDir>
-    <BepInExDir>$(GameDir)\BepInEx</BepInExDir>
+    <!-- override with -p:BepInExDir=... or a BepInExDir environment variable (e.g. a Thunderstore profile's BepInEx) -->
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(GameDir)\BepInEx</BepInExDir>
   </PropertyGroup>
 
   <ItemGroup>

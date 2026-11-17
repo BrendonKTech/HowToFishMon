@@ -165,6 +165,7 @@ namespace HowToFishMon
             foreach (var m in Party) Fix(m);
             foreach (var m in Box) Fix(m);
             if (Api.Injector.Succeeded) RelinkCustomSpecies();
+            if (Fishdex.Loaded) RefreshGameTypes(); // a world's save loaded once the game is up (else Fishdex does it)
         }
 
         // point custom species at the item id their Key got this session
@@ -184,6 +185,36 @@ namespace HowToFishMon
             if (moved > 0) Plugin.Log.LogInfo($"{moved} FishMon of custom species had a new item id this session, fixed.");
             if (renamed > 0) Plugin.Log.LogInfo($"{renamed} FishMon of renamed custom species now use the new name.");
             if (moved + renamed > 0) SaveSoon();
+        }
+
+        // A game species' types come from its name (Species.Keywords). When that list changes, FishMon you already
+        // have follow it, plus any types their evolutions added. Custom species keep their own. Needs the game's items.
+        public static void RefreshGameTypes()
+        {
+            int changed = 0;
+            foreach (var m in Party.Concat(Box))
+            {
+                if (Api.FishMonAPI.Get(m.SpeciesKey) != null) continue;
+                Creature c = null;
+                try { c = GameInfo.IDToItem(m.SpeciesId)?.GetComponent<Creature>(); } catch { }
+                if (!c) continue;
+                var info = Fishdex.InfoFor(c);
+                MonType t1 = info.Type1, t2 = info.Type2;
+                var chain = Evolutions.ChainFor(m);
+                for (int i = 0; i < m.Stage && i < chain.Length; i++)
+                {
+                    if (chain[i].NewType1 != MonType.None) t1 = chain[i].NewType1;
+                    if (chain[i].NewType2 != MonType.None && chain[i].NewType2 != t1) t2 = chain[i].NewType2;
+                }
+                if (t2 == t1) t2 = MonType.None;
+                if (t1 == m.Type1 && t2 == m.Type2) continue;
+                Plugin.Log.LogInfo($"{m.DisplayName} ({m.SpeciesName}): types {m.Type1}/{m.Type2} -> {t1}/{t2}.");
+                m.Type1 = t1;
+                m.Type2 = t2;
+                m.PruneMoves(); // moves it can't learn with the new types
+                changed++;
+            }
+            if (changed > 0) { Plugin.Log.LogInfo($"{changed} FishMon got updated types."); SaveSoon(); }
         }
 
         private static void Fix(FishMon m)

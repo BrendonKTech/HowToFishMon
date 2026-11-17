@@ -28,11 +28,17 @@ namespace HowToFishMon.Api
 
             int additions = 0;
             var names = new List<string>();
+            var quest = new List<string>();
+            QuestTables.Clear();
+            foreach (var o in baits)
+                if (o is BaitInfo qb && IsQuestBait(qb) && weightsF.GetValue(qb) is IList qw) QuestTables.Add(qw);
             foreach (var o in baits)
             {
                 if (!(o is BaitInfo bait)) continue;
                 names.Add(bait.name);
                 if (!(weightsF.GetValue(bait) is IList weights) || weights.Count == 0) continue; // baits that catch nothing stay that way
+                if (IsQuestBait(bait)) { quest.Add(bait.name); continue; }
+                if (QuestTables.Contains(weights)) { Plugin.Log.LogWarning($"Bait '{bait.name}' shares its catch table with a quest bait, so custom species skip it too."); continue; }
 
                 float baseline = Baseline(weights, valueF);
                 foreach (var d in defs)
@@ -56,6 +62,29 @@ namespace HowToFishMon.Api
                 }
             }
             Plugin.Log.LogInfo($"Custom species added to catch tables {additions} time(s). Bait names for BaitFilter: {string.Join(", ", names)}");
+            if (quest.Count > 0) Plugin.Log.LogInfo($"Quest baits, never used for custom species: {string.Join(", ", quest)}");
+        }
+
+        // Quest baits (the game's quests and boss fights use them) never catch custom species, even when a BaitFilter
+        // names them: leech bait, crab carcass, carrot, the chum bucket, the boss lures, the developer test bait,
+        // and coconut / empty beer can (they catch special fish, not regular ones).
+        // Matched against the bait's name in lowercase with spaces removed, so write them that way.
+        private static readonly string[] QuestBaits = { "leech", "crabcarcass", "carrot", "fishbucket", "chum", "boss", "testing", "coconut", "emptybeercan" };
+        private static readonly HashSet<IList> QuestTables = new HashSet<IList>(new RefEq());
+
+        private static bool IsQuestBait(BaitInfo bait)
+        {
+            string b = bait.name.Replace(" ", "").ToLowerInvariant();
+            return QuestBaits.Any(b.Contains);
+        }
+
+        // the catch table a quest bait picks from (CreatureManager.GetRandomItem only gets the list)
+        public static bool IsQuestTable(object weights) => weights is IList l && QuestTables.Contains(l);
+
+        private sealed class RefEq : IEqualityComparer<IList>
+        {
+            public bool Equals(IList a, IList b) => ReferenceEquals(a, b);
+            public int GetHashCode(IList o) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(o);
         }
 
         private static float Baseline(IList weights, FieldInfo valueF)
@@ -69,13 +98,10 @@ namespace HowToFishMon.Api
             return n > 0 ? total / n : 1f;
         }
 
-        // boss lures summon bosses and the other two are developer test baits: never on these unless asked for by name
-        private static readonly string[] SkippedByDefault = { "boss", "testing", "fishbucket" };
-
         private static bool Matches(SpeciesDef d, BaitInfo bait)
         {
             string b = bait.name.Replace(" ", "").ToLowerInvariant();
-            if (string.IsNullOrEmpty(d.BaitFilter)) return !SkippedByDefault.Any(b.Contains);
+            if (string.IsNullOrEmpty(d.BaitFilter)) return true; // quest baits are already skipped
             foreach (var raw in d.BaitFilter.Split(','))
             {
                 string want = raw.Trim().Replace(" ", "").ToLowerInvariant();

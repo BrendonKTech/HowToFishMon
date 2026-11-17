@@ -87,6 +87,74 @@ namespace HowToFishMon.Api
             return tex;
         }
 
+        // drip version of a custom model: same art with its colours turned round the colour wheel
+        private const float DripHue = 0.45f;
+        private static readonly string[] DripTextureSlots = { "_Colors", "_BaseMap", "_MainTex", "_BaseColorMap" };
+        private static readonly Dictionary<Texture, Texture2D> DripTextures = new Dictionary<Texture, Texture2D>();
+
+        private static Color DripColor(Color c)
+        {
+            Color.RGBToHSV(c, out float h, out float s, out float v);
+            var o = Color.HSVToRGB((h + DripHue) % 1f, Mathf.Min(1f, s * 1.15f), v);
+            o.a = c.a;
+            return o;
+        }
+
+        private static Texture2D DripTexture(Texture src)
+        {
+            if (DripTextures.TryGetValue(src, out var done) && done) return done;
+            // game and bundle textures aren't always CPU-readable, so go through the GPU
+            var rt = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var prev = RenderTexture.active;
+            Graphics.Blit(src, rt);
+            RenderTexture.active = rt;
+            var tex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false) { name = src.name + "_Drip" };
+            tex.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+
+            var px = tex.GetPixels();
+            for (int i = 0; i < px.Length; i++) px[i] = DripColor(px[i]);
+            tex.SetPixels(px);
+            tex.filterMode = src.filterMode;
+            tex.wrapMode = src.wrapMode;
+            tex.Apply(false, false);
+            Object.DontDestroyOnLoad(tex);
+            DripTextures[src] = tex;
+            return tex;
+        }
+
+        private static void DripLook(GameObject visual, SpeciesDef d)
+        {
+            var made = new Dictionary<Material, Material>();
+            foreach (var r in visual.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var src = mats[i];
+                    if (src == null) continue;
+                    if (!made.TryGetValue(src, out var copy))
+                    {
+                        copy = new Material(src) { name = src.name + "_Drip" };
+                        bool textured = false;
+                        foreach (var s in DripTextureSlots)
+                        {
+                            if (!copy.HasProperty(s) || !(copy.GetTexture(s) is Texture t)) continue;
+                            try { copy.SetTexture(s, DripTexture(t)); textured = true; }
+                            catch (System.Exception e) { Plugin.Log.LogWarning($"Species '{d.Key}': couldn't make the drip colours from '{t.name}': {e.Message}"); }
+                        }
+                        // a plain-coloured material: shift the colour itself
+                        if (!textured) foreach (var s in ColorSlots) if (copy.HasProperty(s)) copy.SetColor(s, DripColor(copy.GetColor(s)));
+                        Object.DontDestroyOnLoad(copy);
+                        made[src] = copy;
+                    }
+                    mats[i] = copy;
+                }
+                r.sharedMaterials = mats;
+            }
+        }
+
         private static void TintMaterial(Material m, Color tint)
         {
             if (m.HasProperty("_Colors") && m.GetTexture("_Colors") is Texture palette)
@@ -272,27 +340,76 @@ namespace HowToFishMon.Api
 
         private static float Nz(float f) => Mathf.Abs(f) < 1e-5f ? 1f : f;
 
+        // The game shows a drip by switching on _enableOnShiny and switching off _disableOnShiny (Creature.OnStartClient).
+        // Our model has to live under the right one of those, or a drip hides it along with the template's normal mesh.
+        private static bool ShinyToggles(GameObject clone, out Transform on, out Transform off)
+        {
+            var c = clone.GetComponent<Creature>();
+            on = (AccessTools.Field(typeof(Creature), "_enableOnShiny")?.GetValue(c) as GameObject)?.transform;
+            off = (AccessTools.Field(typeof(Creature), "_disableOnShiny")?.GetValue(c) as GameObject)?.transform;
+            return on != null && off != null; // the game only switches when it has both
+        }
+
+        private static bool Under(Transform t, Transform parent) => parent != null && (t == parent || t.IsChildOf(parent));
+
+        private static GameObject Place(GameObject src, Transform anchor, Vector3 position, Transform root, SpeciesDef d, string name)
+        {
+            var v = Object.Instantiate(src, anchor);
+            v.name = name;
+            // parented to the template's mesh so it follows its movement, but lined up with the creature itself:
+            // the template's mesh object is often rotated or scaled (imported models), ours isn't
+            v.transform.position = position;
+            v.transform.rotation = root.rotation * Quaternion.Euler(d.MeshRotation);
+            Vector3 rs = root.lossyScale, a = anchor.lossyScale;
+            v.transform.localScale = new Vector3(rs.x / Nz(a.x), rs.y / Nz(a.y), rs.z / Nz(a.z)) * d.MeshScale;
+            return v;
+        }
+
         private static void GraftPrefab(GameObject clone, SpeciesDef d, Creature basis, FieldInfo itemMesh, FieldInfo dripMesh)
         {
             var filters = clone.GetComponentsInChildren<MeshFilter>(true);
             var skinned = clone.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            Transform anchor = filters.Length > 0 ? filters[0].transform : skinned.Length > 0 ? skinned[0].transform : clone.transform;
+            var meshNodes = new List<Transform>();
+            foreach (var f in filters) meshNodes.Add(f.transform);
+            foreach (var s in skinned) meshNodes.Add(s.transform);
             foreach (var f in filters) { var r = f.GetComponent<Renderer>(); if (r) r.enabled = false; }
             foreach (var s in skinned) s.enabled = false;
 
-            var visual = Object.Instantiate(d.Prefab, anchor);
-            visual.name = "FishMon_Visual";
-            // parented to the template's mesh so it follows its movement, but lined up with the creature itself:
-            // the template's mesh object is often rotated or scaled (imported models), ours isn't
+            bool toggles = ShinyToggles(clone, out var on, out var off);
+            // the copy shown in your hand isn't the world model
+            var inHand = (AccessTools.Field(typeof(Item), "_inHandHolder")?.GetValue(clone.GetComponent<Item>()) as GameObject)?.transform;
+            // prefer the template's normal-only mesh (under _disableOnShiny), so the drip copy below replaces it
+            Transform anchor = null, loose = null, dripAnchor = null;
+            foreach (var t in meshNodes)
+            {
+                if (Under(t, inHand)) continue;
+                if (toggles && Under(t, on)) { if (dripAnchor == null) dripAnchor = t; }
+                else if (toggles && Under(t, off)) { if (anchor == null) anchor = t; }
+                else if (loose == null) loose = t;
+            }
+            if (anchor == null) anchor = loose != null ? loose : toggles ? off : clone.transform;
+            // only needed when the normal model gets hidden on a drip
+            bool needDrip = toggles && Under(anchor, off);
+            if (dripAnchor == null) dripAnchor = on;
+
             var root = clone.transform;
-            visual.transform.position = anchor.position;
-            visual.transform.rotation = root.rotation * Quaternion.Euler(d.MeshRotation);
-            Vector3 rs = root.lossyScale, a = anchor.lossyScale;
-            visual.transform.localScale = new Vector3(rs.x / Nz(a.x), rs.y / Nz(a.y), rs.z / Nz(a.z)) * d.MeshScale;
+            var visual = Place(d.Prefab, anchor, anchor.position, root, d, "FishMon_Visual");
             Prepare(visual, d, basis, anchor.gameObject.layer);
+
+            GameObject drip = null;
+            if (needDrip)
+            {
+                drip = Place(visual, dripAnchor, anchor.position, root, d, "FishMon_Visual_Drip");
+                // Destroy is deferred, so the copy still has the colliders Prepare removed from the original
+                foreach (var c in drip.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+                foreach (var t in drip.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = anchor.gameObject.layer;
+                DripLook(drip, d);
+            }
+            Plugin.Log.LogInfo($"Species '{d.Key}': drip model {(needDrip ? "added under '" + dripAnchor.name + "'" : toggles ? "not needed, the normal one stays on" : "not needed, the template has no drip switch")}.");
             if (d.FitColliders) FitColliders(clone, visual, d);
 
             var own = new List<Renderer>(visual.GetComponentsInChildren<Renderer>(true));
+            if (drip != null) own.AddRange(drip.GetComponentsInChildren<Renderer>(true));
             var item = clone.GetComponent<Item>();
             if (own.Count > 0 && AccessTools.Field(typeof(Item), "_renderers")?.GetValue(item) is List<Renderer> list) { list.Clear(); list.AddRange(own); }
             if (own.Count > 0 && d.KeepTemplateSkin && AccessTools.Field(typeof(Item), "_skinRenderers")?.GetValue(item) is List<Renderer> skin) { skin.Clear(); skin.AddRange(own); }
@@ -321,9 +438,18 @@ namespace HowToFishMon.Api
                 autoTurn = AlignAxes(d.Mesh.bounds, whole);
             }
             var shaped = Bake(d.Mesh, fit * d.MeshScale, Quaternion.Euler(autoTurn) * Quaternion.Euler(d.MeshRotation));
+            // one normal mesh, plus one under the drip object (keeping the template's drip material), so drips aren't empty
+            bool toggles = ShinyToggles(clone, out var on, out _);
+            bool normalDone = false, dripDone = false;
             for (int i = 0; i < filters.Length; i++)
             {
-                if (i == 0) { filters[i].sharedMesh = shaped; continue; }
+                bool isDrip = toggles && Under(filters[i].transform, on);
+                if (isDrip ? !dripDone : !normalDone)
+                {
+                    filters[i].sharedMesh = shaped;
+                    if (isDrip) dripDone = true; else normalDone = true;
+                    continue;
+                }
                 var extra = filters[i].GetComponent<Renderer>();
                 if (extra) extra.enabled = false;
             }

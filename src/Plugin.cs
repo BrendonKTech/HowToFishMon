@@ -13,7 +13,7 @@ namespace HowToFishMon
     {
         public const string Guid = "com.howtofish.fishmon";
         public const string Name = "FishMon";
-        public const string Version = "1.3.0";
+        public const string Version = "1.3.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -95,9 +95,13 @@ namespace HowToFishMon
 
         private static float _lastHpMult = 1f;
 
+        // set while LobbySettings briefly swaps your own values back in to save them: not a real change
+        internal static bool QuietSettings;
+
         // keep everyone's HP at the same percentage when the HP multiplier changes
         private static void RescaleHp()
         {
+            if (QuietSettings) return;
             float now = Mathf.Max(0.05f, FishHpMultiplier.Value), was = Mathf.Max(0.05f, _lastHpMult);
             _lastHpMult = now;
             foreach (var m in FishMonStorage.Party) Rescale(m, now / was);

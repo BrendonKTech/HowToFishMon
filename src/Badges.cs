@@ -85,6 +85,8 @@ namespace HowToFishMon
         private class Fight
         {
             public Creature Boss;
+            public int BossId;
+            public string Name;
             public int Level;
             public bool Valid;   // started on the Challenge preset
             public readonly Dictionary<FishMon, int> Joined = new Dictionary<FishMon, int>(); // level when it first joined
@@ -96,7 +98,8 @@ namespace HowToFishMon
 
         public static void OnBossSpawn(Creature boss)
         {
-            _fight = boss ? new Fight { Boss = boss, Level = BossMon.From(boss).Level, Valid = Presets.Current == Preset.Challenge } : null;
+            _fight = boss ? new Fight { Boss = boss, BossId = boss.ID, Name = Species.SafeName(boss), Level = BossMon.From(boss).Level, Valid = Presets.Current == Preset.Challenge } : null;
+            if (_fight != null) Plugin.Log.LogInfo($"Badge fight: {_fight.Name} Lv {_fight.Level}, {(_fight.Valid ? "counts (Challenge)" : $"doesn't count ({Presets.Current} preset)")}.");
             // already going for it
             var a = FishMonController.Active;
             if (_fight != null && a && a.Target != null && a.Target.Creature == boss) OnJoined(boss, a.Mon);
@@ -124,22 +127,33 @@ namespace HowToFishMon
         {
             var f = _fight;
             _fight = null;
-            if (f == null || f.Boss != boss) return;
+            if (f == null) { Plugin.Log.LogInfo("Badge: a boss died, but no boss fight was being tracked."); return; }
+            // by reference: the boss object may already be destroyed (Unity's == would say null)
+            if (!ReferenceEquals(boss, null) && !ReferenceEquals(boss, f.Boss)) { Plugin.Log.LogInfo($"Badge: {Species.SafeName(boss)} died, but the tracked fight was {f.Name}."); return; }
             foreach (var m in fought) if (m != null && !f.Joined.ContainsKey(m)) f.Joined[m] = m.Level;
-            if (!f.Valid || f.Joined.Count == 0 || Presets.Current != Preset.Challenge) return;
+            if (!f.Valid || Presets.Current != Preset.Challenge) { Plugin.Log.LogInfo($"Badge: none for {f.Name}, not on the Challenge preset."); return; }
+            if (f.Joined.Count == 0)
+            {
+                FishMonController.ShowToast($"No badge for {f.Name}: none of your FishMon fought it.", new Color(1f, 0.65f, 0.5f), 5f);
+                return;
+            }
 
-            string name = Species.SafeName(boss);
+            string name = f.Name;
             var tier = TierFor(f.Level, f.TeamLevel);
             if (tier == BadgeTier.None)
             {
                 FishMonController.ShowToast($"No badge for {name}: your team was over Lv. {Cap(f.Level, BadgeTier.Bronze)}.", new Color(1f, 0.65f, 0.5f), 5f);
                 return;
             }
-            var old = Earned(boss.ID);
-            if (tier <= old) return; // already had this one (or better)
+            var old = Earned(f.BossId);
+            if (tier <= old)
+            {
+                FishMonController.ShowToast($"You already have the <color={Color(old)}>{old} badge</color> for {name}.", new Color(0.8f, 0.85f, 0.95f), 4f);
+                return;
+            }
 
             var perksBefore = Perks.Where(Has).ToList();
-            FishMonStorage.SetBadge(boss.ID, (int)tier);
+            FishMonStorage.SetBadge(f.BossId, (int)tier);
             FishMonController.ShowToast($"<color={Color(tier)}>{tier} badge</color> earned for beating {name} with a Lv. {f.TeamLevel} team!", Gold, 6f);
             foreach (var p in Perks.Where(Has).Except(perksBefore))
                 FishMonController.ShowToast($"Perk unlocked: {p.Name} ({p.Desc})!", Gold, 6f);
