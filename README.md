@@ -211,6 +211,7 @@ There are a couple of things to know:
 - Players who don't have the mod installed won't be affected. They simply won't see any FishMon.
 - Other players' FishMon are just copies on your screen. You can't attack or control someone else's FishMon.
 - All combat happens on the owner's game, but damage dealt to bosses still counts for everyone.
+- **The host's preset and balance settings are used by the whole lobby** (see [Presets](#presets)).
 
 ## Moves
 
@@ -296,6 +297,8 @@ At the top of the Mod Menu you pick a preset:
 
 On Normal and Challenge the balance settings are greyed out, because the preset sets them. Controls, size, roaming, attack effects and detection ranges are always yours to change. Your Custom values are kept while you play on a preset, and come back when you switch to Custom. If you'd already changed settings before presets existed, you start on Custom so nothing changes.
 
+In multiplayer, everyone plays on the **host's** preset and balance settings (so on Challenge, guests can earn badges too). As a guest you'll see them greyed out in the Mod Menu. Your own settings aren't changed, and come back when you leave. The host and guests need version 1.3.1 or later for this.
+
 ### Boss Badges
 
 On the Challenge preset, beat a boss with a low-level team to earn a badge for it:
@@ -306,7 +309,7 @@ On the Challenge preset, beat a boss with a low-level team to earn a badge for i
 | Silver | 80% of the boss's level | 2 |
 | Gold | 60% of the boss's level | 3 |
 
-Each FishMon's level counts from when it first joins the fight, so levelling up mid-fight is fine, but sending in a stronger FishMon isn't. During a boss fight on Challenge, a line under your FishMon's info box shows which badge you're on track for. See all your badges with **F6 → Fishdex → Badges**.
+Each FishMon's level counts from when it first joins the fight, so levelling up mid-fight is fine, but sending in a stronger FishMon isn't. During a boss fight on Challenge, the level each badge needs is shown under the boss's HP bar, along with which badge you're on track for. It changes straight away if an over-levelled FishMon joins the fight. See all your badges with **F6 → Fishdex → Badges**.
 
 Badge points unlock perks, which work on every preset: +10% EXP, half-price Heal All, +10% damage to bosses, +1 party slot, +5% catch chance and another +10% EXP. Each one needs a share of all the points there are (10%, 25%, 40%, 60%, 80% and 100%).
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 
 namespace HowToFishMon
@@ -785,8 +786,71 @@ namespace HowToFishMon
             }
         }
 
+        // the game's boss HP bar (PlayerUI._bossUI): looked up once, by reflection
+        private static object _bossUi;
+        private static RectTransform _bossBar, _bossTimer;
+        private static CanvasGroup _bossBarGroup;
+        private static bool _bossBarLooked;
+
+        // where the boss HP bar is on screen right now, in GUI units. False when it isn't showing (or can't be found).
+        private bool BossBarRect(out Rect rect)
+        {
+            rect = default;
+            if (!BossManager.Boss) return false;
+            try
+            {
+                if (!_bossBar)
+                {
+                    if (_bossBarLooked && _bossUi != null) return false; // looked, and the game doesn't have it
+                    _bossBarLooked = true;
+                    var ui = AccessTools.Field(typeof(PlayerUI), "_instance")?.GetValue(null);
+                    _bossUi = ui != null ? AccessTools.Field(typeof(PlayerUI), "_bossUI")?.GetValue(ui) : null;
+                    if (_bossUi == null) { _bossBarLooked = false; return false; } // UI not up yet: try again later
+                    var t = _bossUi.GetType();
+                    _bossBar = (AccessTools.Field(t, "_bossHealth")?.GetValue(_bossUi) as Component)?.GetComponent<RectTransform>();
+                    _bossTimer = (AccessTools.Field(t, "_timeLeftImage")?.GetValue(_bossUi) as Component)?.GetComponent<RectTransform>();
+                    _bossBarGroup = AccessTools.Field(t, "_bossCanvasLerped")?.GetValue(_bossUi) as CanvasGroup;
+                    if (!_bossBar) { Plugin.Log.LogWarning("Couldn't find the game's boss HP bar, so the badge levels show under the FishMon box instead."); return false; }
+                }
+                if (!PlayerUI.BossCanvasActive || (_bossBarGroup && _bossBarGroup.alpha < 0.5f) || !_bossBar.gameObject.activeInHierarchy) return false;
+
+                var canvas = _bossBar.GetComponentInParent<Canvas>()?.rootCanvas;
+                Camera cam = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : (canvas.worldCamera ? canvas.worldCamera : Camera.main);
+                bool any = false; float xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+                var corners = new Vector3[4];
+                foreach (var rt in new[] { _bossBar, _bossTimer })
+                {
+                    if (!rt || !rt.gameObject.activeInHierarchy) continue;
+                    rt.GetWorldCorners(corners);
+                    foreach (var c in corners)
+                    {
+                        Vector3 sp = cam ? cam.WorldToScreenPoint(c) : c;
+                        float gx = sp.x / _scale, gy = (Screen.height - sp.y) / _scale;
+                        if (!any) { xMin = xMax = gx; yMin = yMax = gy; any = true; }
+                        else { xMin = Mathf.Min(xMin, gx); xMax = Mathf.Max(xMax, gx); yMin = Mathf.Min(yMin, gy); yMax = Mathf.Max(yMax, gy); }
+                    }
+                }
+                if (!any || yMax <= 0f || yMin >= VH) return false;
+                rect = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        // the badge levels under the boss HP bar (Challenge preset)
+        private void DrawBossBadges()
+        {
+            if (!Badges.BossBarText(out var caps, out var status) || !BossBarRect(out var bar)) return;
+            float w = Mathf.Clamp(bar.width + 140f, 520f, VW - 40f);
+            var box = new Rect(bar.center.x - w / 2f, bar.yMax + 8f, w, 52f);
+            Styles.Fill(box, new Color(0.06f, 0.08f, 0.12f, 0.8f));
+            GUI.Label(new Rect(box.x, box.y + 3, box.width, 22), $"<size=14>{caps}</size>", Styles.Center);
+            GUI.Label(new Rect(box.x, box.y + 26, box.width, 22), $"<size=13>{status}</size>", Styles.Center);
+        }
+
         private void DrawHud()
         {
+            DrawBossBadges();
             bool bossUp = BossManager.Boss && !BossManager.Boss.IsDead;
             if (Active)
             {
@@ -817,13 +881,13 @@ namespace HowToFishMon
                 GUI.Label(new Rect(r.x + 12, r.y + 90, r.width - 24, 22),
                     $"<color=#9aa6bd>[{Plugin.KeyName(Plugin.AttackKey)}] attack target  [{Plugin.KeyName(Plugin.StayKey)}] stay/follow  [{Plugin.KeyName(Plugin.SummonKey)}] recall  [{Plugin.KeyName(Plugin.SwapKey)}] swap</color>", Styles.Small);
 
-                // badge challenge (Challenge preset, boss fight): which badge you're still on track for
-                string badge = Badges.HudLine();
-                if (badge != null)
+                // badge levels, if the game's boss bar can't be found to put them under
+                if (!BossBarRect(out _) && Badges.BossBarText(out var badgeCaps, out var badgeStatus))
                 {
-                    var br = new Rect(r.x, r.yMax + 6f, r.width, 28f);
+                    var br = new Rect(r.x, r.yMax + 6f, r.width, 50f);
                     Styles.Fill(br, new Color(0.06f, 0.08f, 0.12f, 0.8f));
-                    GUI.Label(new Rect(br.x + 12, br.y + 3, br.width - 24, 22), $"<size=13>{badge}</size>", Styles.Small);
+                    GUI.Label(new Rect(br.x + 12, br.y + 3, br.width - 24, 22), $"<size=13>{badgeCaps}</size>", Styles.Small);
+                    GUI.Label(new Rect(br.x + 12, br.y + 25, br.width - 24, 22), $"<size=13>{badgeStatus}</size>", Styles.Small);
                 }
             }
             else if (bossUp && FishMonStorage.Lead != null)

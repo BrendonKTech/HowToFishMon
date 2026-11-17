@@ -4,6 +4,7 @@
 - 4 more ocean species, and the first FishMon for four types: **Bonefin** (Ghost), **Cindergill** (Fire), **Kelpling** (Grass) and **Shellmite** (Bug)
 - The host's preset and balance settings now apply to the whole lobby. Guests see them greyed out in the Mod Menu and get their own settings back when they leave (the host and guests need this version)
 - Fixed: boss badges were never given, even when your team was under the level cap
+- Boss badges: the level each badge needs (Gold / Silver / Bronze) now shows under the boss's HP bar, with the badge you're on track for. It updates as soon as an over-levelled FishMon joins the fight
 - Fixed: beating a boss didn't give your FishMon its EXP, or count towards their bosses defeated and the Fishdex
 - Fixed: most ocean species were invisible when they were a Drip
 - Ocean species no longer bite on quest and special baits: Leech Bait, Crab Carcass, Carrot, the Chum Bucket, Boss Lures, Coconut and the Empty Beer Can

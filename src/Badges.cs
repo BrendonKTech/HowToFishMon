@@ -161,19 +161,41 @@ namespace HowToFishMon
             Plugin.Log.LogInfo($"Badge: {tier} for {name} (boss Lv {f.Level}, team Lv {f.TeamLevel})");
         }
 
-        // the line under the HUD during a boss fight on Challenge
-        public static string HudLine()
+        // Shown under the boss HP bar during a boss fight on Challenge.
+        // caps: the level each badge needs, still-possible ones in their colour, the one you're on in bold, lost ones greyed.
+        // status: where your team stands. It updates the moment an over-levelled FishMon joins the fight.
+        public static bool BossBarText(out string caps, out string status)
         {
+            caps = status = null;
             var f = _fight;
-            if (f == null || !f.Valid || !f.Boss || f.Boss.IsDead || Presets.Current != Preset.Challenge) return null;
-            int team = f.TeamLevel;
-            if (team == 0 && FishMonController.Active) team = FishMonController.Active.Mon.Level; // nobody's joined yet
-            if (team == 0) return null;
-            var tier = TierFor(f.Level, team);
-            string caps = $"<color=#9aa6bd>Gold ≤ Lv.{Cap(f.Level, BadgeTier.Gold)} · Silver ≤ {Cap(f.Level, BadgeTier.Silver)} · Bronze ≤ {Cap(f.Level, BadgeTier.Bronze)}</color>";
-            return tier == BadgeTier.None
-                ? $"<color=#ff9a9a>Badge: team too strong (Lv. {team})</color>  {caps}"
-                : $"Badge: <b><color={Color(tier)}>{tier}</color></b> on track  {caps}";
+            if (f == null || !f.Valid || !f.Boss || f.Boss.IsDead || Presets.Current != Preset.Challenge) return false;
+
+            // the strongest FishMon that has fought (at the level it joined with), or a preview with the one you have out
+            FishMon top = null; int team = 0;
+            foreach (var kv in f.Joined) if (top == null || kv.Value > team) { top = kv.Key; team = kv.Value; }
+            bool preview = top == null;
+            if (preview && FishMonController.Active) { top = FishMonController.Active.Mon; team = top.Level; }
+            var tier = top == null ? BadgeTier.Gold : TierFor(f.Level, team);
+
+            string Cell(BadgeTier t)
+            {
+                string text = $"{t} ≤ Lv. {Cap(f.Level, t)}";
+                if (tier == BadgeTier.None || t < tier) return $"<color=#5c6478>{text}</color>"; // can't get this one any more
+                return t == tier ? $"<b><color={Color(t)}>{text}</color></b>" : $"<color={Color(t)}>{text}</color>";
+            }
+            caps = $"{Cell(BadgeTier.Gold)}     {Cell(BadgeTier.Silver)}     {Cell(BadgeTier.Bronze)}";
+
+            if (top == null)
+                status = $"<color=#9aa6bd>Send out a FishMon at or under Lv. {Cap(f.Level, BadgeTier.Bronze)} for a badge</color>";
+            else if (tier == BadgeTier.None)
+                status = preview
+                    ? $"<color=#ff9a9a>{top.DisplayName} (Lv. {team}) is over Lv. {Cap(f.Level, BadgeTier.Bronze)}: no badge if it fights</color>"
+                    : $"<color=#ff9a9a>{top.DisplayName} (Lv. {team}) fought, over Lv. {Cap(f.Level, BadgeTier.Bronze)}: no badge this fight</color>";
+            else
+                status = preview
+                    ? $"<color=#c8d2e6>{top.DisplayName} (Lv. {team}) would get <b><color={Color(tier)}>{tier}</color></b></color>"
+                    : $"<color=#c8d2e6>On track for <b><color={Color(tier)}>{tier}</color></b>  (strongest that fought: {top.DisplayName}, Lv. {team})</color>";
+            return true;
         }
     }
 }
